@@ -1,0 +1,62 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{DFD2B964-799D-478B-8D72-023C480FA57F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Kernel", "Kernel", "{13359C69-3793-4037-ACCF-BB3D8D0C5F26}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppThere.Loki.Kernel", "src\Kernel\AppThere.Loki.Kernel\AppThere.Loki.Kernel.csproj", "{A7280DAF-B97D-41B0-9FAB-71EBCE126262}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppThere.Loki.Skia", "src\Kernel\AppThere.Loki.Skia\AppThere.Loki.Skia.csproj", "{C3C97826-DF69-4637-8622-DF9FDE4D71FB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{7B090656-7764-4803-BF00-56EE1E411CB1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppThere.Loki.Tools.LokiPrint", "tools\lokiprint\AppThere.Loki.Tools.LokiPrint.csproj", "{5C657AB1-C766-41A2-98A6-F77D2F8A03F5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{62E69BAA-0671-488D-8A1C-167AF2C85F2D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppThere.Loki.Tests.Unit", "tests\unit\AppThere.Loki.Tests.Unit\AppThere.Loki.Tests.Unit.csproj", "{4FA7DC5D-C5BC-4488-9C3A-20DAB407CEC7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppThere.Loki.Tests.Rendering", "tests\rendering\AppThere.Loki.Tests.Rendering\AppThere.Loki.Tests.Rendering.csproj", "{454168CB-D851-453F-9308-7539EDEC4093}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A7280DAF-B97D-41B0-9FAB-71EBCE126262}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7280DAF-B97D-41B0-9FAB-71EBCE126262}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7280DAF-B97D-41B0-9FAB-71EBCE126262}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7280DAF-B97D-41B0-9FAB-71EBCE126262}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C3C97826-DF69-4637-8622-DF9FDE4D71FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3C97826-DF69-4637-8622-DF9FDE4D71FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3C97826-DF69-4637-8622-DF9FDE4D71FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3C97826-DF69-4637-8622-DF9FDE4D71FB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5C657AB1-C766-41A2-98A6-F77D2F8A03F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5C657AB1-C766-41A2-98A6-F77D2F8A03F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5C657AB1-C766-41A2-98A6-F77D2F8A03F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5C657AB1-C766-41A2-98A6-F77D2F8A03F5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4FA7DC5D-C5BC-4488-9C3A-20DAB407CEC7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4FA7DC5D-C5BC-4488-9C3A-20DAB407CEC7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4FA7DC5D-C5BC-4488-9C3A-20DAB407CEC7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4FA7DC5D-C5BC-4488-9C3A-20DAB407CEC7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{454168CB-D851-453F-9308-7539EDEC4093}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{454168CB-D851-453F-9308-7539EDEC4093}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{454168CB-D851-453F-9308-7539EDEC4093}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{454168CB-D851-453F-9308-7539EDEC4093}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{13359C69-3793-4037-ACCF-BB3D8D0C5F26} = {DFD2B964-799D-478B-8D72-023C480FA57F}
+		{A7280DAF-B97D-41B0-9FAB-71EBCE126262} = {13359C69-3793-4037-ACCF-BB3D8D0C5F26}
+		{C3C97826-DF69-4637-8622-DF9FDE4D71FB} = {13359C69-3793-4037-ACCF-BB3D8D0C5F26}
+		{5C657AB1-C766-41A2-98A6-F77D2F8A03F5} = {7B090656-7764-4803-BF00-56EE1E411CB1}
+		{4FA7DC5D-C5BC-4488-9C3A-20DAB407CEC7} = {62E69BAA-0671-488D-8A1C-167AF2C85F2D}
+		{454168CB-D851-453F-9308-7539EDEC4093} = {62E69BAA-0671-488D-8A1C-167AF2C85F2D}
+	EndGlobalSection
+EndGlobal

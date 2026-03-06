@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>lokiprint</AssemblyName>
+    <RootNamespace>AppThere.Loki.Tools.LokiPrint</RootNamespace>
+    <OutputType>Exe</OutputType>
+    <Description>
+      Headless CLI tool for AppThere Loki. Phase 1 exit criterion:
+      'lokiprint test-render --output out/test.pdf' must succeed.
+    </Description>
+    <!-- Single-file publish support -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <!-- Native Skia assets need extraction path for single-file -->
+    <RuntimeIdentifiers>win-x64;win-arm64;osx-x64;osx-arm64;linux-x64;linux-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Kernel\AppThere.Loki.Skia\AppThere.Loki.Skia.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
+</Project>

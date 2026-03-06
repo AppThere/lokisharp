@@ -1,0 +1,24 @@
+<Project>
+  <ItemGroup>
+    <!-- Skia -->
+    <PackageVersion Include="SkiaSharp"                          Version="2.88.8" />
+    <PackageVersion Include="SkiaSharp.HarfBuzz"                Version="2.88.8" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Win32"       Version="2.88.8" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.macOS"       Version="2.88.8" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux"       Version="2.88.8" />
+
+    <!-- Microsoft Extensions -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection"          Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting"                       Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions"          Version="9.0.0" />
+
+    <!-- Test -->
+    <PackageVersion Include="xunit"                              Version="2.9.0" />
+    <PackageVersion Include="xunit.runner.visualstudio"          Version="2.8.2" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk"             Version="17.11.0" />
+    <PackageVersion Include="FluentAssertions"                   Version="6.12.0" />
+    <PackageVersion Include="NSubstitute"                        Version="5.1.0" />
+    <PackageVersion Include="BenchmarkDotNet"                    Version="0.14.0" />
+  </ItemGroup>
+</Project>
