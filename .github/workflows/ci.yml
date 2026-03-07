@@ -48,7 +48,7 @@ jobs:
         run: dotnet build --configuration Release --no-restore
 
       - name: Unit tests
-        run: dotnet test tests/unit --configuration Release --no-build
+        run: dotnet test tests/unit/AppThere.Loki.Tests.Unit --configuration Release --no-build
              --logger "trx;LogFileName=unit-results.trx"
              --results-directory TestResults/
 
@@ -82,7 +82,7 @@ jobs:
         run: dotnet restore && dotnet build --configuration Release --no-restore
 
       - name: Rendering tests (headless)
-        run: xvfb-run -a dotnet test tests/rendering --configuration Release --no-build
+        run: xvfb-run -a dotnet test tests/rendering/AppThere.Loki.Tests.Rendering --configuration Release --no-build
              --logger "trx;LogFileName=rendering-results.trx"
              --results-directory TestResults/
 
@@ -110,7 +110,7 @@ jobs:
       - run: dotnet restore
       - run: dotnet build --configuration Release --no-restore
       - name: Run architecture tests
-        run: dotnet test tests/unit --configuration Release --no-build
+        run: dotnet test tests/unit/AppThere.Loki.Tests.Unit --configuration Release --no-build
              --filter "Category=Architecture"
 
   # ── File header & line count checks ─────────────────────────────────────────
