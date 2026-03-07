@@ -6,6 +6,7 @@
     <PackageVersion Include="SkiaSharp.NativeAssets.Win32"       Version="2.88.8" />
     <PackageVersion Include="SkiaSharp.NativeAssets.macOS"       Version="2.88.8" />
     <PackageVersion Include="SkiaSharp.NativeAssets.Linux"       Version="2.88.8" />
+    <PackageVersion Include="HarfBuzzSharp.NativeAssets.Linux"  Version="7.3.0.2" />
 
     <!-- Microsoft Extensions -->
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection"          Version="9.0.0" />

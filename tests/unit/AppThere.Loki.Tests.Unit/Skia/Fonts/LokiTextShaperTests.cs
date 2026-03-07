@@ -6,8 +6,8 @@
 //          font size, and empty-input handling.
 //          IFontManager is mocked via NSubstitute; SkiaTypeface instances wrap
 //          real system typefaces so advances and glyph IDs are real non-zero values.
-// DEPENDS: LokiTextShaper, IFontManager, ILokiTypeface, SkiaTypeface, GlyphRun,
-//          FontDescriptor, NullLokiLogger
+// DEPENDS: LokiTextShaper, BidiAnalyser, IFontManager, ILokiTypeface, SkiaTypeface,
+//          SkiaFontManager, GlyphRun, FontDescriptor, NullLokiLogger
 // USED BY: CI
 // PHASE:   1
 // ADR:     ADR-001
@@ -20,6 +20,8 @@ using AppThere.Loki.Tests.Unit.Skia;
 using FluentAssertions;
 using NSubstitute;
 using SkiaSharp;
+
+// ReSharper disable StringLiteralTypo
 
 namespace AppThere.Loki.Tests.Unit.Skia.Fonts;
 
@@ -174,5 +176,108 @@ public sealed class LokiTextShaperTests : IDisposable
         var largeAdvance = _sut.Shape(LatinWord, large)[0].TotalAdvance;
 
         smallAdvance.Should().BeLessThan(largeAdvance);
+    }
+
+    // ── BiDi ──────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Shape_LatinOnly_IsRtlFalse()
+    {
+        var runs = _sut.Shape(LatinWord, FontDescriptor.Default);
+
+        runs.Should().OnlyContain(r => r.IsRtl == false);
+    }
+
+    [Fact]
+    public void Shape_ArabicOnly_IsRtlTrue()
+    {
+        var sut  = CreateRealShaper();
+        var runs = sut.Shape("مرحبا", FontDescriptor.Default);
+
+        runs.Should().NotBeEmpty();
+        runs.Should().OnlyContain(r => r.IsRtl);
+    }
+
+    [Fact]
+    public void Shape_MixedLatinArabic_HasRtlRun()
+    {
+        var sut  = CreateRealShaper();
+        var runs = sut.Shape("hello مرحبا", FontDescriptor.Default);
+
+        runs.Should().Contain(r => r.IsRtl);
+    }
+
+    [Fact]
+    public void Shape_MixedLatinArabic_HasLtrRun()
+    {
+        var sut  = CreateRealShaper();
+        var runs = sut.Shape("hello مرحبا", FontDescriptor.Default);
+
+        runs.Should().Contain(r => !r.IsRtl);
+    }
+
+    // ── HarfBuzz / Arabic shaping ─────────────────────────────────────────────
+
+    [Fact]
+    public void Shape_LatinWord_GlyphIdsNonZero_WithRealFont()
+    {
+        var sut  = CreateRealShaper();
+        var runs = sut.Shape(LatinWord, FontDescriptor.Default);
+
+        // HarfBuzz must assign valid (non-zero) glyph IDs via the real font manager.
+        runs.Should().HaveCount(1);
+        runs[0].GlyphIds.Should().NotContain((ushort)0);
+    }
+
+    [Fact]
+    public void Shape_ArabicWord_AllAdvancesNonNegative()
+    {
+        var sut  = CreateRealShaper();
+        var runs = sut.Shape("مرحبا", FontDescriptor.Default);
+
+        foreach (var run in runs)
+            run.Advances.Should().OnlyContain(a => a >= 0f);
+    }
+
+    [Fact]
+    public void Shape_ArabicWord_TotalAdvancePositive()
+    {
+        var sut         = CreateRealShaper();
+        var runs        = sut.Shape("مرحبا", FontDescriptor.Default);
+        var totalAdvance = runs.Sum(r => r.TotalAdvance);
+
+        totalAdvance.Should().BeGreaterThan(0f);
+    }
+
+    [Fact]
+    public void Shape_ArabicWord_GlyphIdsNonZero()
+    {
+        var sut  = CreateRealShaper();
+        var runs = sut.Shape("مرحبا", FontDescriptor.Default);
+
+        // HarfBuzz should assign valid (non-zero) glyph IDs for Arabic text.
+        runs.Should().NotBeEmpty();
+        runs[0].GlyphIds.Should().NotContain((ushort)0);
+    }
+
+    [Fact]
+    public void Shape_ArabicWord_FontSizeAffectsAdvances()
+    {
+        var sut   = CreateRealShaper();
+        var small = FontDescriptor.Default with { SizeInPoints = 12f };
+        var large = FontDescriptor.Default with { SizeInPoints = 24f };
+
+        var smallAdv = sut.Shape("مرحبا", small).Sum(r => r.TotalAdvance);
+        var largeAdv = sut.Shape("مرحبا", large).Sum(r => r.TotalAdvance);
+
+        smallAdv.Should().BeLessThan(largeAdv);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private static LokiTextShaper CreateRealShaper()
+    {
+        var fm = new SkiaFontManager(NullLokiLogger.Instance);
+        return new LokiTextShaper(fm, NullLokiLogger.Instance);
     }
 }

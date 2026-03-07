@@ -21,7 +21,8 @@
     <!-- Platform native assets — included in all build configurations -->
     <PackageReference Include="SkiaSharp.NativeAssets.Win32"  Condition="'$(OS)'=='Windows_NT'" />
     <PackageReference Include="SkiaSharp.NativeAssets.macOS"  Condition="'$(OS)'!='Windows_NT' and '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))'=='true'" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux"  Condition="'$(OS)'!='Windows_NT' and '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))'=='false'" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux"      Condition="'$(OS)'!='Windows_NT' and '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))'=='false'" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Condition="'$(OS)'!='Windows_NT' and '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))'=='false'" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
   </ItemGroup>

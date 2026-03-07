@@ -1,13 +1,12 @@
 // LAYER:   AppThere.Loki.Skia — Rendering Kernel
 // KIND:    Implementation
-// PURPOSE: Shapes Unicode text into one or more GlyphRuns using the Latin fast path
-//          (SKFont.GetGlyphs + GetGlyphWidths). Splits runs at typeface boundaries
-//          when a codepoint is absent from the primary typeface, calling
-//          IFontManager.GetFallbackForScript to obtain the correct fallback.
-//          BiDi reordering is deferred to Task 4 — IsRtl is always false here.
-//          Does NOT expose SKFont or SKTypeface to callers above this layer.
+// PURPOSE: Shapes Unicode text into one or more GlyphRuns using HarfBuzz via
+//          SkiaSharp.HarfBuzz (SKShaper). Splits runs at typeface boundaries when
+//          a codepoint is absent from the primary typeface. Runs a lightweight
+//          Unicode BiDi scan (BidiAnalyser) to set IsRtl on each run.
+//          Does NOT expose SKFont, SKTypeface, or HarfBuzz types to callers.
 // DEPENDS: IFontManager, ILokiTypeface, SkiaTypeface, GlyphRun, FontDescriptor,
-//          ILokiLogger, FontResolutionException
+//          BidiAnalyser, ILokiLogger, FontResolutionException
 // USED BY: LokiSkiaPainter, TileRenderer — injected via DI
 // PHASE:   1
 // ADR:     ADR-001
@@ -19,6 +18,8 @@ using AppThere.Loki.Kernel.Fonts;
 using AppThere.Loki.Kernel.Logging;
 using AppThere.Loki.Skia.Scene;
 using SkiaSharp;
+using SkiaSharp.HarfBuzz; // BlobExtensions.ToHarfBuzzBlob
+using HB = HarfBuzzSharp;
 
 namespace AppThere.Loki.Skia.Fonts;
 
@@ -112,22 +113,45 @@ public sealed class LokiTextShaper
             var typeface = _typeface!;
             _sb.Clear();
             _typeface = null;
-            return ShapeSegment(typeface, text, sizeInPoints);
+            var isRtl = BidiAnalyser.HasStrongRtl(text.AsSpan());
+            return ShapeSegment(typeface, text, sizeInPoints, isRtl);
         }
 
-        private static GlyphRun ShapeSegment(ILokiTypeface loki, string text, float size)
+        private static GlyphRun ShapeSegment(ILokiTypeface loki, string text, float size, bool isRtl)
         {
             var skTypeface = ResolveSkTypeface(loki);
-            using var font = new SKFont(skTypeface, size);
 
-            // Count glyphs, allocate buffers, then fill in one pass each.
-            var count    = font.CountGlyphs(text);
-            var glyphIds = new ushort[count];
-            font.GetGlyphs(text, glyphIds.AsSpan());
+            using var buffer = new HB.Buffer();
+            buffer.AddUtf16(text);
+            buffer.Direction = isRtl ? HB.Direction.RightToLeft : HB.Direction.LeftToRight;
+            buffer.GuessSegmentProperties();
 
-            var advances = new float[count];
-            font.GetGlyphWidths(glyphIds.AsSpan(), advances.AsSpan(),
-                                Span<SKRect>.Empty, paint: null);
+            // Build the HarfBuzz font directly so GlyphPositions remain readable after
+            // shaping. (SKShaper.Shape consumes the buffer and zeroes its positions
+            // before it returns, making buffer.GlyphPositions unusable afterwards.)
+            int ttcIndex;
+            using var stream = skTypeface.OpenStream(out ttcIndex);
+            using var blob   = stream.ToHarfBuzzBlob();
+            using var face   = new HB.Face(blob, (uint)ttcIndex);
+            using var font   = new HB.Font(face);
+            font.SetFunctionsOpenType();
+            var upem = (int)face.UnitsPerEm;
+            font.SetScale(upem, upem); // unscaled: XAdvance values are in design units
+
+            font.Shape(buffer);
+
+            var glyphInfos = buffer.GlyphInfos;
+            var positions  = buffer.GlyphPositions;
+            var n          = glyphInfos.Length;
+
+            var glyphIds = new ushort[n];
+            for (var i = 0; i < n; i++)
+                glyphIds[i] = (ushort)glyphInfos[i].Codepoint;
+
+            // Convert design-unit advances to Skia points: pts = designUnits * size / upem.
+            var advances = new float[n];
+            for (var i = 0; i < n; i++)
+                advances[i] = positions[i].XAdvance * size / upem;
 
             return new GlyphRun(
                 loki, size,
@@ -135,7 +159,7 @@ public sealed class LokiTextShaper
                 ImmutableArray.Create(advances),
                 OffsetX: null,
                 OffsetY: null,
-                IsRtl:   false);
+                IsRtl:   isRtl);
         }
 
         private static SKTypeface ResolveSkTypeface(ILokiTypeface loki)

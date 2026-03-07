@@ -10,7 +10,7 @@
 //          On a standard Linux CI host the glibc path is used normally and this
 //          class is a no-op.
 // DEPENDS: (none — pure .NET + P/Invoke)
-// USED BY: SkiaFontManagerTests, DiagnosticSkiaTests
+// USED BY: SkiaFontManagerTests, DiagnosticSkiaTests, LokiTextShaperTests, SkiaImageTests
 // PHASE:   1
 
 using System.Runtime.InteropServices;
@@ -63,6 +63,20 @@ internal static class SkiaTestInitializer
                             return IntPtr.Zero;
 
                         return NativeLibrary.Load(bionicSkia);
+                    });
+
+                // Redirect HarfBuzzSharp P/Invoke to the Android system HarfBuzz
+                // (bionic ABI — the glibc NuGet asset cannot load in this environment).
+                const string bionicHarfBuzz = "/system/lib64/libharfbuzz_ng.so";
+                NativeLibrary.SetDllImportResolver(
+                    typeof(HarfBuzzSharp.Buffer).Assembly,
+                    (libraryName, _, _) =>
+                    {
+                        if (!libraryName.StartsWith("libHarfBuzzSharp",
+                                StringComparison.OrdinalIgnoreCase))
+                            return IntPtr.Zero;
+
+                        return NativeLibrary.Load(bionicHarfBuzz);
                     });
             }
             catch
