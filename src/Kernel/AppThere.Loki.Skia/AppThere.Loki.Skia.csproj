@@ -26,6 +26,13 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
   </ItemGroup>
 
+  <!-- Allow the unit test project to access internal types (e.g. SkiaTypeface) -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>AppThere.Loki.Tests.Unit</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
   <!-- Embed bundled fonts as assembly resources -->
   <ItemGroup>
     <EmbeddedResource Include="Resources\Fonts\**\*.ttf">
