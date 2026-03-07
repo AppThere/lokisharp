@@ -179,7 +179,24 @@ jobs:
         with:
           fetch-depth: 0
       - name: Check DCO
-        uses: colin-at-work/action-dco@v1
+        run: |
+          BASE=${{ github.event.pull_request.base.sha }}
+          HEAD=${{ github.event.pull_request.head.sha }}
+          MISSING=0
+          for SHA in $(git log --format="%H" "${BASE}".."${HEAD}"); do
+            BODY=$(git log --format="%B" -n1 "$SHA")
+            SUBJECT=$(git log --format="%s" -n1 "$SHA")
+            if ! echo "$BODY" | grep -qE "^Signed-off-by: .+ <.+>$"; then
+              echo "MISSING sign-off: $SHA $SUBJECT"
+              MISSING=1
+            fi
+          done
+          if [ "$MISSING" -eq 1 ]; then
+            echo "ERROR: Some commits are missing the DCO Signed-off-by line."
+            echo "Sign commits with: git commit -s"
+            exit 1
+          fi
+          echo "All commits carry a DCO Signed-off-by line."
 
   # ── lokiprint smoke test ──────────────────────────────────────────────────────
   lokiprint-smoke:
