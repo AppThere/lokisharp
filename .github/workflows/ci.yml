@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, 'dev/**', 'feat/**', 'fix/**']
+    branches: [main, 'dev/**', 'feat/**', 'fix/**', 'claude/**']
   pull_request:
     branches: [main, 'dev/**']
 
@@ -34,6 +34,12 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install system deps (Linux — SkiaSharp runtime requirements)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libfontconfig1 libfreetype6 libgdiplus
 
       - name: Restore
         run: dotnet restore
@@ -99,6 +105,8 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Install system deps
+        run: sudo apt-get update -qq && sudo apt-get install -y libfontconfig1 libfreetype6 libgdiplus
       - run: dotnet restore
       - run: dotnet build --configuration Release --no-restore
       - name: Run architecture tests
@@ -133,8 +141,8 @@ jobs:
         run: |
           OVER=0
           while IFS= read -r -d '' file; do
-            # Count non-blank, non-comment lines
-            COUNT=$(grep -v '^s*$' "$file" | grep -v '^s*//' | wc -l)
+            # Count non-blank, non-comment lines (\s* uses POSIX character class)
+            COUNT=$(grep -v '^\s*$' "$file" | grep -v '^\s*//' | wc -l)
             if [ "$COUNT" -gt 300 ]; then
               echo "OVER LIMIT ($COUNT lines): $file"
               OVER=1
