@@ -8,7 +8,7 @@
 //            2. Registers a DllImportResolver that redirects "libSkiaSharp"
 //               to a bionic-compiled copy at the Termux usr/lib path.
 //          On a standard Linux CI host the glibc path is used normally and this
-//          class is a no-op.
+//          class is a no-op. On Windows and macOS it is unconditionally a no-op.
 // DEPENDS: (none — pure .NET + P/Invoke)
 // USED BY: SkiaFontManagerTests, DiagnosticSkiaTests, LokiTextShaperTests, SkiaImageTests
 // PHASE:   1
@@ -24,16 +24,25 @@ internal static class SkiaTestInitializer
     private static bool _done;
 
     // dlopen flags: RTLD_NOW (0x2) | RTLD_GLOBAL (0x100)
+    // Declared only on Linux to prevent DllImport resolution failures on
+    // Windows and macOS test hosts, which eagerly inspect P/Invoke stubs
+    // during test discovery even when the method is never called.
+#if NET && !BROWSER
+    [DllImport("libdl", EntryPoint = "dlopen")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Interoperability", "SYSLIB1054",
+        Justification = "Termux-only shim; guarded by RuntimeInformation check at call site.")]
+    private static extern IntPtr DlOpen(string filename, int flags);
+#endif
+
     private const int RtldNow    = 0x00002;
     private const int RtldGlobal = 0x00100;
-
-    [DllImport("libdl.so", EntryPoint = "dlopen")]
-    private static extern IntPtr DlOpen(string filename, int flags);
 
     /// <summary>
     /// Call once before any SkiaSharp type is used in a test assembly.
     /// On Android/PRoot hosts this pre-loads a bionic stub for missing XZ
     /// symbols and redirects the SkiaSharp P/Invoke to the bionic binary.
+    /// On Windows, macOS, and standard Linux CI this is a no-op.
     /// </summary>
     internal static void EnsureSkiaSharpLoaded()
     {
@@ -42,17 +51,26 @@ internal static class SkiaTestInitializer
             if (_done) return;
             _done = true;
 
+            // Guard 1: This shim is only relevant on Linux (which includes Termux/Android
+            // PRoot). Windows and macOS use self-contained native asset packages and must
+            // never reach the resolver-registration code below.
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) return;
+
             const string bionicSkia = "/data/data/com.termux/files/usr/lib/libSkiaSharp.so";
             const string xzStub     = "/data/data/com.termux/files/usr/lib/libxzstub.so";
 
-            if (!File.Exists(bionicSkia)) return; // Standard Linux CI — use default loading.
+            // Guard 2: If the Termux bionic binary is absent we are on a standard
+            // Linux CI host — let the SkiaSharp.NativeAssets.Linux package handle loading.
+            if (!File.Exists(bionicSkia)) return;
 
             try
             {
+#if NET && !BROWSER
                 // Preload the xz stub with RTLD_GLOBAL so its symbols (Xzs_Construct etc.)
                 // are available when libunwindstack.so is loaded as a transitive dependency.
                 if (File.Exists(xzStub))
                     DlOpen(xzStub, RtldNow | RtldGlobal);
+#endif
 
                 NativeLibrary.SetDllImportResolver(
                     typeof(SKTypeface).Assembly,

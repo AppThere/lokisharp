@@ -27,8 +27,16 @@ namespace AppThere.Loki.Tests.Unit.Skia.Fonts;
 
 public sealed class LokiTextShaperTests : IDisposable
 {
-    // Real typefaces so advances and glyph IDs are real non-zero values.
-    private readonly SkiaTypeface    _primaryTypeface;
+    // _primaryTypeface is a controlled mock so ContainsGlyph and FamilyName are
+    // predictable on every platform.  On Windows, generic family names ("serif",
+    // "sans-serif") can resolve to the same underlying typeface — giving identical
+    // FamilyNames — so the accumulator boundary check never fires and the whole
+    // string collapses into one run.  Some Windows fonts also contain PUA glyphs,
+    // making ContainsGlyph(U+E001) return true.  Using a mock removes both hazards.
+    //
+    // _fallbackTypeface wraps a real SKTypeface so HarfBuzz shaping in the
+    // real-shaper tests (CreateRealShaper) gets authentic advance values.
+    private readonly ILokiTypeface   _primaryTypeface;
     private readonly SkiaTypeface    _fallbackTypeface;
     private readonly IFontManager    _mockFm;
     private readonly LokiTextShaper  _sut;
@@ -36,9 +44,10 @@ public sealed class LokiTextShaperTests : IDisposable
     private const string LatinWord   = "hello";
     private const string LatinPhrase = "hello world";
 
-    // U+E001 is in the Private Use Area — no standard font maps it, so
-    // ContainsGlyph reliably returns false for any system serif/sans-serif font.
-    private const string FallbackChar = "\uE001";
+    // U+E001 is in the Private Use Area.  The mock primary explicitly returns
+    // false for this codepoint; the real fallback typeface is used instead.
+    private const string FallbackChar      = "\uE001";
+    private const int    FallbackCodepoint = 0xE001;
 
     static LokiTextShaperTests()
     {
@@ -47,8 +56,14 @@ public sealed class LokiTextShaperTests : IDisposable
 
     public LokiTextShaperTests()
     {
-        _primaryTypeface  = new SkiaTypeface(
-            SKTypeface.FromFamilyName("serif"),     isBundled: false, ownsTypeface: true, isVariable: false);
+        // Mock primary: known family name, contains all Latin codepoints,
+        // does NOT contain FallbackCodepoint.
+        var mockPrimary = Substitute.For<ILokiTypeface>();
+        mockPrimary.FamilyName.Returns("LokiTestSerif");
+        mockPrimary.ContainsGlyph(Arg.Is<int>(cp => cp != FallbackCodepoint)).Returns(true);
+        // FallbackCodepoint falls through to NSubstitute's default (false).
+        _primaryTypeface = mockPrimary;
+
         _fallbackTypeface = new SkiaTypeface(
             SKTypeface.FromFamilyName("sans-serif"), isBundled: false, ownsTypeface: true, isVariable: false);
 
