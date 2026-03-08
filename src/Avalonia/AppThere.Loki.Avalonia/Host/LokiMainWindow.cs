@@ -28,6 +28,7 @@ using AppThere.Loki.Avalonia.Cache;
 using AppThere.Loki.Avalonia.Controls;
 using AppThere.Loki.LokiKit.Document;
 using AppThere.Loki.LokiKit.Host;
+using AppThere.Loki.LokiKit.View;
 
 namespace AppThere.Loki.Avalonia.Host;
 

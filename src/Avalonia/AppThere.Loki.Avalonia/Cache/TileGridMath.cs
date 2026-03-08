@@ -10,6 +10,7 @@
 // PHASE:   4
 // ADR:     ADR-011
 
+using Avalonia;
 using AppThere.Loki.Avalonia.Controls;
 using AppThere.Loki.Kernel.Geometry;
 

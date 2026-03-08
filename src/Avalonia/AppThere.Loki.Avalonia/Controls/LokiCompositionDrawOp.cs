@@ -12,11 +12,12 @@
 // PHASE:   4
 // ADR:     ADR-010, ADR-011
 
-using Avalonia.Media;
+using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
-using Avalonia.Rendering.Composition;
+using Avalonia.Rendering;
 using Avalonia.Skia;
+using AppThere.Loki.Avalonia.Cache;
 using SkiaSharp;
 
 namespace AppThere.Loki.Avalonia.Controls;

@@ -18,7 +18,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
-using Avalonia.VisualTree;
 using AppThere.Loki.Avalonia.Cache;
 using AppThere.Loki.Kernel.Logging;
 using AppThere.Loki.LokiKit.View;
