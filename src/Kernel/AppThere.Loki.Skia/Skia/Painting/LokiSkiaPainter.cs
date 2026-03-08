@@ -150,14 +150,16 @@ public sealed class LokiSkiaPainter : ILokiPainter
 
         using var blobBuilder = new SKTextBlobBuilder();
         var buffer = blobBuilder.AllocatePositionedRun(font, count);
-        for (var i = 0; i < count; i++) buffer.Glyphs[i] = run.GlyphIds[i];
-        for (var i = 0; i < count; i++) buffer.Points[i] = positions[i];
+        var glyphSpan = buffer.GetGlyphSpan();
+        var pointSpan = buffer.GetPointSpan();
+        for (var i = 0; i < count; i++) glyphSpan[i] = run.GlyphIds[i];
+        for (var i = 0; i < count; i++) pointSpan[i] = positions[i];
 
         using var blob = blobBuilder.Build();
         if (blob is null) return;
 
         using var skPaint = PaintStyleConverter.CreateTextPaint(paint);
-        _canvas.DrawTextBlob(blob, origin.X, origin.Y, skPaint);
+        _canvas.DrawText(blob, origin.X, origin.Y, skPaint);
     }
 
     // ── Groups / effects ──────────────────────────────────────────────────────
