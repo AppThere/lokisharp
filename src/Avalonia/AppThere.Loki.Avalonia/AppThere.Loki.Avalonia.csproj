@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>AppThere.Loki.Avalonia</RootNamespace>
+    <AssemblyName>AppThere.Loki.Avalonia</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\LokiKit\AppThere.Loki.LokiKit\AppThere.Loki.LokiKit.csproj" />
+    <ProjectReference Include="..\..\Writer\AppThere.Loki.Writer\AppThere.Loki.Writer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Skia" />
+    <PackageReference Include="SkiaSharp" />
+  </ItemGroup>
+
+</Project>
