@@ -27,6 +27,13 @@ public sealed record LokiDocument(
     string?                   Title,
     string?                   Language)
 {
+    /// <summary>
+    /// Monotonic counter stamped by WriterEngine before each layout pass.
+    /// LayoutEngine uses this as the docVersion key in LayoutCache.
+    /// 0 = initial (never laid out).
+    /// </summary>
+    internal int LayoutVersion { get; init; } = 0;
+
     public static LokiDocument Empty => new(
         ImmutableList<BlockNode>.Empty,
         StyleRegistry.Empty,

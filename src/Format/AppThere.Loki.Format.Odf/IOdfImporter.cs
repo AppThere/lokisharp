@@ -19,7 +19,9 @@ using AppThere.Loki.Writer.Model;
 
 namespace AppThere.Loki.Format.Odf;
 
-public interface IOdfImporter
+// This interface is superseded by AppThere.Loki.Writer.Engine.IOdfImporter.
+// Kept internal to avoid conflicts. OdfImporter implements the Writer-defined interface.
+internal interface IOdfImporter
 {
     /// <summary>
     /// Import an ODT or FODT stream into a LokiDocument.

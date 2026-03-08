@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>AppThere.Loki.Tests.Writer</AssemblyName>
+    <RootNamespace>AppThere.Loki.Tests.Writer</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- Suppress TreatWarningsAsErrors for test projects (FluentAssertions dynamic) -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Kernel\AppThere.Loki.Kernel\AppThere.Loki.Kernel.csproj" />
+    <ProjectReference Include="..\..\..\src\Kernel\AppThere.Loki.Skia\AppThere.Loki.Skia.csproj" />
+    <ProjectReference Include="..\..\..\src\Writer\AppThere.Loki.Writer\AppThere.Loki.Writer.csproj" />
+    <ProjectReference Include="..\..\..\src\Format\AppThere.Loki.Format.Odf\AppThere.Loki.Format.Odf.csproj" />
+    <ProjectReference Include="..\..\..\src\LokiKit\AppThere.Loki.LokiKit\AppThere.Loki.LokiKit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="NSubstitute" />
+  </ItemGroup>
+
+  <!-- Copy test corpus files to output directory -->
+  <ItemGroup>
+    <Content Include="..\..\..\tests\corpus\writer\*.fodt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>corpus\writer\%(Filename)%(Extension)</Link>
+    </Content>
+  </ItemGroup>
+
+</Project>

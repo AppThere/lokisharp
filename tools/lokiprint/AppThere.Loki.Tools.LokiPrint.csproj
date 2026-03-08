@@ -18,6 +18,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kernel\AppThere.Loki.Skia\AppThere.Loki.Skia.csproj" />
     <ProjectReference Include="..\..\src\LokiKit\AppThere.Loki.LokiKit\AppThere.Loki.LokiKit.csproj" />
+    <ProjectReference Include="..\..\src\Writer\AppThere.Loki.Writer\AppThere.Loki.Writer.csproj" />
+    <ProjectReference Include="..\..\src\Format\AppThere.Loki.Format.Odf\AppThere.Loki.Format.Odf.csproj" />
   </ItemGroup>
 
   <ItemGroup>
