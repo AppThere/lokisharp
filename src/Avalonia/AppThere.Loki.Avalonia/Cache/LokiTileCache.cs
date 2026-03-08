@@ -166,7 +166,7 @@ public sealed class LokiTileCache : ILokiTileCache
             foreach (var entry in _completed.Values) entry.Bitmap.Dispose();
             _completed.Clear();
             _totalBytes = 0;
-            foreach (var (_, f) in _inFlight.Values) f.Cts.Cancel();
+            foreach (var (_, f) in _inFlight.Values) f.Cancel();
             _inFlight.Clear();
             if (_viewport is not null)
             {
@@ -243,7 +243,7 @@ public sealed class LokiTileCache : ILokiTileCache
             new PixelSize(bitmap.Width, bitmap.Height),
             new Vector(96, 96),
             PixelFormat.Bgra8888,
-            AlphaType.Premul);
+            AlphaFormat.Premul);
         using var fb = wb.Lock();
         Marshal.Copy(bitmap.Bytes, 0, fb.Address, bitmap.Bytes.Length);
         return wb;
@@ -331,7 +331,7 @@ public sealed class LokiTileCache : ILokiTileCache
         Task[] pending;
         lock (_lock)
         {
-            foreach (var (_, f) in _inFlight.Values) f.Cts.Cancel();
+            foreach (var (_, f) in _inFlight.Values) f.Cancel();
             pending = _inFlight.Values.Select(f => f.Task).ToArray();
         }
         try { await Task.WhenAll(pending).WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false); }

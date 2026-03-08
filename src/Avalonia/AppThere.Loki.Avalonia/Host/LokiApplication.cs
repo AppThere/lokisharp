@@ -14,7 +14,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Themes.Fluent;
 using AppThere.Loki.Avalonia.Cache;
 using AppThere.Loki.LokiKit.Host;
-using AppThere.Loki.Writer.Engine;
+using AppThere.Loki.Writer;
 
 namespace AppThere.Loki.Avalonia.Host;
 

@@ -71,7 +71,6 @@ public sealed class LokiTileControl : Control
     {
         _options = options;
         GestureRecognizers.Add(new PinchGestureRecognizer());
-        GestureRecognizers.Add(new ScrollGestureRecognizer { CanHorizontallyScroll = true });
     }
 
     // ── Property change dispatch ─────────────────────────────────────────────

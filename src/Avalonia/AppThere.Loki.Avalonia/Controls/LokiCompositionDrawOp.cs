@@ -20,7 +20,7 @@ namespace AppThere.Loki.Avalonia.Controls;
 public sealed class LokiCompositionDrawOp
 {
     private static readonly IBrush _placeholder =
-        new ImmutableSolidColorBrush(Color.FromRgb(220, 220, 220));
+        new SolidColorBrush(Color.FromRgb(220, 220, 220));
 
     /// <summary>
     /// Immutable snapshot of tiles to draw this frame.

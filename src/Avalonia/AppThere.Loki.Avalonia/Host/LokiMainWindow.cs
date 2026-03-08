@@ -131,8 +131,11 @@ public sealed class LokiMainWindow : Window
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(8, 0),
         };
-        _tileControl.GetObservable(LokiTileControl.ZoomProperty)
-            .Subscribe(z => zoomLabel.Text = $"{(int)(z * 100)}%");
+        _tileControl.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == LokiTileControl.ZoomProperty)
+                zoomLabel.Text = $"{(int)(_tileControl.Zoom * 100)}%";
+        };
 
         var bar = new DockPanel
         {
@@ -201,7 +204,7 @@ public sealed class LokiMainWindow : Window
 
     private async void OnDrop(object? sender, DragEventArgs e)
     {
-        var first = e.Data.GetFileNames()?.FirstOrDefault();
+        var first = e.Data.GetFiles()?.OfType<IStorageFile>().FirstOrDefault()?.Path.LocalPath;
         if (first is not null)
             await OpenDocumentAsync(first);
     }
