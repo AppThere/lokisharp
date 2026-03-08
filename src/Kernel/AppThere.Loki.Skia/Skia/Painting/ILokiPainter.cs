@@ -34,7 +34,7 @@ public interface ILokiPainter
     void DrawPath(LokiPath path, PaintStyle fill, PaintStyle? stroke = null);
 
     // ── Images ────────────────────────────────────────────────────────────────
-    void DrawImage(RectF destBounds, ImageRef image, float opacity = 1f);
+    void DrawImage(RectF destBounds, ImageRef image, float opacity = 1f, ImageFit fit = ImageFit.Contain);
 
     // ── Text ─────────────────────────────────────────────────────────────────
     void DrawGlyphRun(PointF origin, GlyphRun run, TextPaint paint);
