@@ -1,5 +1,11 @@
 <Project>
   <ItemGroup>
+    <!-- Avalonia -->
+    <PackageVersion Include="Avalonia"                           Version="11.2.0" />
+    <PackageVersion Include="Avalonia.Skia"                      Version="11.2.0" />
+    <PackageVersion Include="Avalonia.Themes.Fluent"             Version="11.2.0" />
+    <PackageVersion Include="Avalonia.Headless"                  Version="11.2.0" />
+
     <!-- Skia -->
     <PackageVersion Include="SkiaSharp"                          Version="2.88.8" />
     <PackageVersion Include="SkiaSharp.HarfBuzz"                Version="2.88.8" />
