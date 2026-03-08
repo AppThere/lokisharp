@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>AppThere.Loki.Writer</RootNamespace>
+    <AssemblyName>AppThere.Loki.Writer</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Writer depends on Skia for LokiTextShaper (glyph measurement) -->
+    <ProjectReference Include="..\..\Kernel\AppThere.Loki.Skia\AppThere.Loki.Skia.csproj" />
+    <ProjectReference Include="..\..\LokiKit\AppThere.Loki.LokiKit\AppThere.Loki.LokiKit.csproj" />
+  </ItemGroup>
+
+</Project>

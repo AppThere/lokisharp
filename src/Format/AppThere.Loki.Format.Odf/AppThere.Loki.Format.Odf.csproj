@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>AppThere.Loki.Format.Odf</RootNamespace>
+    <AssemblyName>AppThere.Loki.Format.Odf</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Format.Odf depends only on Writer (no Skia, no LokiKit) -->
+    <ProjectReference Include="..\..\Writer\AppThere.Loki.Writer\AppThere.Loki.Writer.csproj" />
+  </ItemGroup>
+
+</Project>
