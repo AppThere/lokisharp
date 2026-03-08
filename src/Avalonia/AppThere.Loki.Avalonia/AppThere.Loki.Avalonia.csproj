@@ -16,7 +16,15 @@
   <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Skia" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="SkiaSharp" />
+  </ItemGroup>
+
+  <!-- Allow the Avalonia unit test project to access internal types -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>AppThere.Loki.Tests.Avalonia</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 
 </Project>
