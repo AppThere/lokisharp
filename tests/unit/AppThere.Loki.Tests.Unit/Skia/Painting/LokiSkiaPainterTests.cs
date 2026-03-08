@@ -314,7 +314,8 @@ public sealed class LokiSkiaPainterTests : IDisposable
         var       glyphIds = new ushort[skFont.CountGlyphs(text)];
         skFont.GetGlyphs(text.AsSpan(), glyphIds.AsSpan());
         var       advances = new float[glyphIds.Length];
-        skFont.GetGlyphWidths(glyphIds.AsSpan(), advances.AsSpan());
+        skFont.GetGlyphWidths(glyphIds.AsSpan(), advances.AsSpan(),
+                              Span<SKRect>.Empty, null);
 
         return new GlyphRun(
             typeface,
