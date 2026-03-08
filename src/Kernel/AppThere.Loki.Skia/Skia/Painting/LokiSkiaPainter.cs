@@ -165,7 +165,9 @@ public sealed class LokiSkiaPainter : ILokiPainter
         var glyphBytes = System.Runtime.InteropServices.MemoryMarshal
             .AsBytes(run.GlyphIds.AsSpan())
             .ToArray();
+#pragma warning disable CS0618 // DrawPositionedText obsolete in 2.88.8; SKTextBlob span API requires 3.x
         _canvas.DrawPositionedText(glyphBytes, positions, skPaint);
+#pragma warning restore CS0618
     }
 
     // ── Groups / effects ──────────────────────────────────────────────────────
