@@ -161,10 +161,11 @@ public sealed class LokiSkiaPainter : ILokiPainter
         // SKCanvas.DrawPositionedText is obsolete in favour of SKTextBlob,
         // but SKTextBlobBuilder.AllocatePositionedRun span accessors require
         // SkiaSharp 3.x. This is the correct approach for 2.88.8.
-        _canvas.DrawPositionedText(
-            run.GlyphIds.ToArray(),
-            positions,
-            skPaint);
+        // Reinterpret glyph ID array as raw bytes for DrawPositionedText
+        var glyphBytes = System.Runtime.InteropServices.MemoryMarshal
+            .AsBytes(run.GlyphIds.AsSpan())
+            .ToArray();
+        _canvas.DrawPositionedText(glyphBytes, positions, skPaint);
     }
 
     // ── Groups / effects ──────────────────────────────────────────────────────
