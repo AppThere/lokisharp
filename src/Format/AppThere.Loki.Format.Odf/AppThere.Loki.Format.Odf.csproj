@@ -9,8 +9,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Format.Odf depends only on Writer (no Skia, no LokiKit) -->
     <ProjectReference Include="..\..\Writer\AppThere.Loki.Writer\AppThere.Loki.Writer.csproj" />
+    <!-- LokiOpenException for structural parse failures -->
+    <ProjectReference Include="..\..\LokiKit\AppThere.Loki.LokiKit\AppThere.Loki.LokiKit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AppThere.Loki.Tests.Writer</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 
 </Project>
