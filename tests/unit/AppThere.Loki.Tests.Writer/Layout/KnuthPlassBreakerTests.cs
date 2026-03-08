@@ -90,7 +90,7 @@ public sealed class KnuthPlassBreakerTests
     public void Break_TwoWordsFit_ReturnsSingleLine()
     {
         // Both words (40 + 6glue + 40 = 86) fit in 200pt line
-        var measured = BuildMeasured(lineWidth: 200f, wordWidths: 40f, 40f);
+        var measured = BuildMeasured(lineWidth: 200f, 40f, 40f);
         var result   = _sut.Break(measured);
 
         result.Lines.Should().HaveCount(1);
@@ -101,7 +101,7 @@ public sealed class KnuthPlassBreakerTests
     public void Break_TwoWordsDontFit_ReturnsTwoLines()
     {
         // Two 80pt words + 6pt glue = 166pt > 100pt line → must split
-        var measured = BuildMeasured(lineWidth: 100f, wordWidths: 80f, 80f);
+        var measured = BuildMeasured(lineWidth: 100f, 80f, 80f);
         var result   = _sut.Break(measured);
 
         result.Lines.Should().HaveCount(2);
@@ -167,7 +167,7 @@ public sealed class KnuthPlassBreakerTests
     {
         // Words are wider than the line — K-P has no feasible breaks, greedy fires
         // Each word is 150pt on a 100pt line — cannot fit any word
-        var measured = BuildMeasured(lineWidth: 100f, wordWidths: 150f, 150f, 150f);
+        var measured = BuildMeasured(lineWidth: 100f, 150f, 150f, 150f);
         var result   = _sut.Break(measured);
 
         // Should not throw and must produce at least one line
