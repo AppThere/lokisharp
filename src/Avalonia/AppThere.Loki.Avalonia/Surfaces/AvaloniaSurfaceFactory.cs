@@ -10,6 +10,8 @@
 // ADR:     ADR-010
 
 using SkiaSharp;
+using AppThere.Loki.Avalonia.Cache;
+using AppThere.Loki.Kernel.Errors;
 using AppThere.Loki.Kernel.Surfaces;
 
 namespace AppThere.Loki.Avalonia.Surfaces;

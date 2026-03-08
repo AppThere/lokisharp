@@ -16,6 +16,8 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Rendering.Composition;
+using Avalonia.Skia;
+using SkiaSharp;
 
 namespace AppThere.Loki.Avalonia.Controls;
 
@@ -45,9 +47,36 @@ public sealed class LokiCompositionDrawOp : ICustomDrawOperation
     /// </summary>
     public void Render(ImmediateDrawingContext context)
     {
-        // Implementation: fill background white, then DrawImage per tile.
-        // Placeholder tiles (null Bitmap) draw a light-grey rectangle.
-        throw new NotImplementedException("Implemented by Claude Code");
+        var skia = context.TryGetFeature<ISkiaSharpApiLeaseFeature>();
+        if (skia is null) return;
+
+        using var lease  = skia.Lease();
+        var canvas = lease.SkCanvas;
+
+        canvas.Clear(SKColors.White);
+
+        foreach (var tile in Tiles)
+        {
+            var r      = tile.ScreenRect;
+            var skRect = SKRect.Create((float)r.X, (float)r.Y, (float)r.Width, (float)r.Height);
+
+            if (tile.Bitmap is not null)
+            {
+                using var fb = tile.Bitmap.Lock();
+                var info = new SKImageInfo(
+                    tile.Bitmap.PixelSize.Width, tile.Bitmap.PixelSize.Height,
+                    SKColorType.Bgra8888, SKAlphaType.Premul);
+                var bmp = new SKBitmap();
+                bmp.InstallPixels(info, fb.Address, fb.RowBytes);
+                canvas.DrawBitmap(bmp, skRect);
+                bmp.Dispose();
+            }
+            else
+            {
+                using var paint = new SKPaint { Color = new SKColor(220, 220, 220) };
+                canvas.DrawRect(skRect, paint);
+            }
+        }
     }
 
     public bool HitTest(Avalonia.Point p) => Bounds.Contains(p);

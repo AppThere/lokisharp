@@ -18,6 +18,9 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.VisualTree;
+using AppThere.Loki.Avalonia.Cache;
+using AppThere.Loki.Kernel.Logging;
 using AppThere.Loki.LokiKit.View;
 
 namespace AppThere.Loki.Avalonia.Controls;
@@ -56,61 +59,142 @@ public sealed class LokiTileControl : Control, ICustomHitTest
         set => SetValue(ScrollOffsetProperty, value);
     }
 
+    // ── Fields ───────────────────────────────────────────────────────────────
+
+    private readonly TileCacheOptions      _options;
+    private LokiTileCache?                 _cache;
+    private ViewportGeometry?              _viewport;
+    private LokiCompositionDrawOp?         _currentDrawOp;
+
     // ── Constructor ──────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Constructor: takes TileCacheOptions so the cache is configured at
-    /// construction time. In production, injected via DI-aware control
-    /// factory. In tests, constructed directly.
-    /// </summary>
     public LokiTileControl(TileCacheOptions options)
     {
-        // Implementation: create LokiTileCache, subscribe to TileReady,
-        // register gesture recognizers, subscribe to property changes.
-        throw new NotImplementedException("Implemented by Claude Code");
+        _options = options;
+        GestureRecognizers.Add(new PinchGestureRecognizer());
+        GestureRecognizers.Add(new ScrollGestureRecognizer { CanHorizontallyScroll = true });
+    }
+
+    // ── Property change dispatch ─────────────────────────────────────────────
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == DocumentViewProperty)
+        {
+            OnDocumentViewChanged(
+                change.GetOldValue<ILokiView?>(),
+                change.GetNewValue<ILokiView?>());
+        }
+        else if (change.Property == ZoomProperty ||
+                 change.Property == ScrollOffsetProperty)
+        {
+            UpdateViewport();
+            InvalidateVisual();
+        }
+        else if (change.Property == BoundsProperty)
+        {
+            UpdateViewport();
+            InvalidateVisual();
+        }
     }
 
     // ── Rendering ────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Avalonia render override. Builds a LokiCompositionDrawOp from the
-    /// current tile snapshot and passes it to the DrawingContext.
-    /// Called on the render thread — must not access DI or async operations.
-    /// </summary>
     public override void Render(DrawingContext context)
     {
-        throw new NotImplementedException("Implemented by Claude Code");
+        var snapshot = BuildTileSnapshot();
+        _currentDrawOp?.Dispose();
+        _currentDrawOp = new LokiCompositionDrawOp(snapshot, new Rect(Bounds.Size));
+        context.Custom(_currentDrawOp);
     }
 
     // ── Layout ───────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Returns the total size of the document in DIPs at current zoom.
-    /// Avalonia calls this during layout to size scroll containers.
-    /// </summary>
     protected override Size MeasureOverride(Size availableSize)
     {
-        throw new NotImplementedException("Implemented by Claude Code");
+        var view = DocumentView;
+        if (view is null) return availableSize;
+        var size = view.GetPartSize(0);
+        var zoom = Zoom;
+        return new Size(size.Width * zoom, size.Height * zoom);
     }
 
     // ── ICustomHitTest ───────────────────────────────────────────────────────
 
     public bool HitTest(Point point) => Bounds.Contains(point);
 
-    // ── Internal ─────────────────────────────────────────────────────────────
+    // ── Private helpers ──────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Recomputes ViewportGeometry from current Bounds, ScrollOffset, Zoom,
-    /// and DocumentView, then calls cache.UpdateViewport.
-    /// Called on scroll, resize, and zoom change.
-    /// </summary>
-    private void UpdateViewport() =>
-        throw new NotImplementedException("Implemented by Claude Code");
+    private void UpdateViewport()
+    {
+        var view = DocumentView;
+        if (view is null || Bounds.Width <= 0 || Bounds.Height <= 0) return;
 
-    /// <summary>
-    /// Builds the PositionedTile list for the current viewport.
-    /// Queries the cache for each tile in the visible grid.
-    /// </summary>
-    private IReadOnlyList<PositionedTile> BuildTileSnapshot() =>
-        throw new NotImplementedException("Implemented by Claude Code");
+        var scroll = ScrollOffset;
+        var zoom   = Zoom;
+        var vp = new ViewportGeometry(
+            PartIndex:         0,
+            ViewportWidthPts:  (float)Bounds.Width,
+            ViewportHeightPts: (float)Bounds.Height,
+            ScrollOffsetXPts:  (float)scroll.X,
+            ScrollOffsetYPts:  (float)scroll.Y,
+            Zoom:              zoom,
+            TileSizePx:        _options.TileSizePx);
+        _viewport = vp;
+        _cache?.UpdateViewport(vp);
+    }
+
+    private IReadOnlyList<PositionedTile> BuildTileSnapshot()
+    {
+        var vp   = _viewport;
+        var view = DocumentView;
+        if (vp is null || view is null) return Array.Empty<PositionedTile>();
+
+        float docW = view.GetPartSize(vp.PartIndex).Width;
+        float docH = view.GetPartSize(vp.PartIndex).Height;
+        var keys   = TileGridMath.TilesForViewport(vp, docW, docH).ToList();
+
+        var result = new List<PositionedTile>(keys.Count);
+        foreach (var key in keys)
+        {
+            var screenRect = TileGridMath.ScreenRect(key, vp);
+            var bitmap     = _cache?.TryGetTile(key);
+            result.Add(new PositionedTile(key, screenRect, bitmap));
+        }
+        return result;
+    }
+
+    private void OnDocumentViewChanged(ILokiView? oldView, ILokiView? newView)
+    {
+        if (_cache is { } old)
+        {
+            old.TileReady -= OnTileReady;
+            _ = old.DisposeAsync().AsTask();
+        }
+        _cache = null;
+
+        if (newView is null) return;
+
+        _cache = new LokiTileCache(newView, _options, NullLokiLogger.Instance);
+        _cache.TileReady += OnTileReady;
+        UpdateViewport();
+        InvalidateVisual();
+    }
+
+    private void OnTileReady(object? sender, Cache.TileKey key) =>
+        InvalidateVisual();
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        if (_cache is { } c)
+        {
+            c.TileReady -= OnTileReady;
+            _ = c.DisposeAsync().AsTask();
+            _cache = null;
+        }
+        _currentDrawOp?.Dispose();
+        _currentDrawOp = null;
+    }
 }
