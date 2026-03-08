@@ -80,6 +80,23 @@ internal static class PaintStyleConverter
         };
     }
 
+    /// <summary>
+    /// Creates a fill SKPaint for positioned glyph rendering with the given font.
+    /// Sets Typeface and TextSize so DrawPositionedText resolves glyphs correctly.
+    /// Caller disposes.
+    /// </summary>
+    internal static SKPaint CreateTextPaint(TextPaint tp, SKFont font)
+    {
+        return new SKPaint
+        {
+            IsAntialias = true,
+            Style       = SKPaintStyle.Fill,
+            Color       = ToSkColor(tp.Color).WithAlpha((byte)(tp.Opacity * tp.Color.A * 255f)),
+            Typeface    = font.Typeface,
+            TextSize    = font.Size,
+        };
+    }
+
     // ── Private helpers ────────────────────────────────────────────────────
 
     private static SKStrokeCap MapLineCap(LineCap cap) => cap switch

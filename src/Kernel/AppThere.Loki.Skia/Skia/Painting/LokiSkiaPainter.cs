@@ -132,11 +132,11 @@ public sealed class LokiSkiaPainter : ILokiPainter
         if (run.GlyphIds.IsDefaultOrEmpty) return;
 
         var skTypeface = ((SkiaTypeface)run.Typeface).Inner;
-        using var font = new SKFont(skTypeface, run.SizeInPoints) { Subpixel = true };
+        var skFont     = new SKFont(skTypeface, run.SizeInPoints);
 
         if (paint.BackgroundColor.HasValue)
         {
-            var bgRect = ComputeGlyphRunBounds(origin, run, font);
+            var bgRect = ComputeGlyphRunBounds(origin, run, skFont);
             using var bgPaint = new SKPaint
             {
                 Style = SKPaintStyle.Fill,
@@ -145,21 +145,26 @@ public sealed class LokiSkiaPainter : ILokiPainter
             _canvas.DrawRect(bgRect, bgPaint);
         }
 
-        var count     = run.GlyphIds.Length;
-        var positions = BuildGlyphPositions(run, count);
+        var positions = new SKPoint[run.GlyphIds.Length];
+        float x = origin.X;
+        float y = origin.Y;
+        for (int i = 0; i < run.GlyphIds.Length; i++)
+        {
+            float offsetX = run.OffsetX != null ? run.OffsetX.Value[i] : 0f;
+            float offsetY = run.OffsetY != null ? run.OffsetY.Value[i] : 0f;
+            positions[i]  = new SKPoint(x + offsetX, y + offsetY);
+            x += run.Advances[i];
+        }
 
-        using var blobBuilder = new SKTextBlobBuilder();
-        var buffer = blobBuilder.AllocatePositionedRun(font, count);
-        var glyphSpan = buffer.GetGlyphSpan();
-        var pointSpan = buffer.GetPointSpan();
-        for (var i = 0; i < count; i++) glyphSpan[i] = run.GlyphIds[i];
-        for (var i = 0; i < count; i++) pointSpan[i] = positions[i];
-
-        using var blob = blobBuilder.Build();
-        if (blob is null) return;
-
-        using var skPaint = PaintStyleConverter.CreateTextPaint(paint);
-        _canvas.DrawText(blob, origin.X, origin.Y, skPaint);
+        using var skPaint = PaintStyleConverter.CreateTextPaint(paint, skFont);
+        skPaint.TextEncoding = SKTextEncoding.GlyphId;
+        // SKCanvas.DrawPositionedText is obsolete in favour of SKTextBlob,
+        // but SKTextBlobBuilder.AllocatePositionedRun span accessors require
+        // SkiaSharp 3.x. This is the correct approach for 2.88.8.
+        _canvas.DrawPositionedText(
+            run.GlyphIds.ToArray(),
+            positions,
+            skPaint);
     }
 
     // ── Groups / effects ──────────────────────────────────────────────────────
