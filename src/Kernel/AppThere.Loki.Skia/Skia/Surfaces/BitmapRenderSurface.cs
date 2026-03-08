@@ -50,6 +50,15 @@ public sealed class BitmapRenderSurface : IRenderSurface
         return _bitmap;
     }
 
+    /// <summary>
+    /// Returns the underlying canvas. Caller does not own it — do not dispose.
+    /// </summary>
+    public SKCanvas GetCanvas()
+    {
+        ThrowIfDisposed();
+        return _canvas;
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
