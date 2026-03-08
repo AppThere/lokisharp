@@ -1,15 +1,16 @@
 // LAYER:   AppThere.Loki.Tools.LokiPrint — Host
 // KIND:    Implementation
 // PURPOSE: Implements the 'test-render' sub-command for lokiprint.
-//          Parses --output, --tile, and --zoom arguments; opens a document via
-//          ILokiHost; creates a view; exports to PDF or PNG tile.
+//          Parses --output, --input, --tile, and --zoom arguments; opens a
+//          document via ILokiHost; creates a view; exports to PDF or PNG tile.
+//          --input <path>: open an ODF/FODT file; omit to use an empty document.
 //          PDF: uses view.RenderToPdfAsync — no casting required.
 //          PNG: uses view.RenderTileAsync(TileRequest.ForHeadless(...)).
 //          Disposes view and document on completion.
 //          Does NOT expose SkiaSharp types outside this file.
 // DEPENDS: ILokiHost, ILokiView, ILokiDocument, TileRequest, PdfMetadata, OpenOptions
 // USED BY: Program
-// PHASE:   2
+// PHASE:   3
 
 using AppThere.Loki.LokiKit.Host;
 using AppThere.Loki.LokiKit.View;
@@ -28,6 +29,7 @@ internal sealed class TestRenderCommand
     public async Task<int> ExecuteAsync(string[] args)
     {
         string? output  = null;
+        string? input   = null;
         float   zoom    = 1f;
         int     col     = 0, row = 0;
         bool    hasTile = false;
@@ -36,6 +38,8 @@ internal sealed class TestRenderCommand
         {
             if (args[i] == "--output" && i + 1 < args.Length)
                 output = args[++i];
+            else if (args[i] == "--input" && i + 1 < args.Length)
+                input = args[++i];
             else if (args[i] == "--zoom" && i + 1 < args.Length
                      && float.TryParse(args[++i], out var z))
                 zoom = z;
@@ -54,8 +58,15 @@ internal sealed class TestRenderCommand
 
         try
         {
+            Stream sourceStream = input is not null
+                ? File.OpenRead(input)
+                : Stream.Null;
+
             await using var document = await _host.OpenAsync(
-                Stream.Null, OpenOptions.Default).ConfigureAwait(false);
+                sourceStream, OpenOptions.Default).ConfigureAwait(false);
+
+            if (input is not null) await sourceStream.DisposeAsync().ConfigureAwait(false);
+
             using var view = _host.CreateView(document);
 
             var ext = Path.GetExtension(output).ToLowerInvariant();
