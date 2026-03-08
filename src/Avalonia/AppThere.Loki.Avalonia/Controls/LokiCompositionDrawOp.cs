@@ -1,87 +1,60 @@
 // LAYER:   AppThere.Loki.Avalonia — Controls
-// KIND:    Class (Avalonia ICustomDrawOperation implementation)
-// PURPOSE: Called by Avalonia on the render thread in response to
-//          InvalidateVisual(). Holds an immutable snapshot of positioned
-//          tile bitmaps. Iterates the snapshot and draws each tile via
-//          DrawingContext.DrawImage. Does NO tile rendering itself.
-//          Created fresh on each InvalidateVisual() call with the
-//          current tile snapshot — old instances are disposed after the
-//          frame completes.
-// DEPENDS: ILokiTileCache, TileKey, TileCacheOptions
-// USED BY: LokiTileControl.OnRender
+// KIND:    Class (Avalonia draw helper)
+// PURPOSE: Called by LokiTileControl.Render(). Holds an immutable snapshot of
+//          positioned tile bitmaps. Draws white background, then each tile bitmap
+//          at its screen rect via DrawingContext.DrawImage. Does NO tile rendering.
+//          Created fresh on each Render() call — old instances are disposed after
+//          the frame completes.
+// DEPENDS: TileKey
+// USED BY: LokiTileControl.Render
 // PHASE:   4
 // ADR:     ADR-010, ADR-011
 
 using Avalonia;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using Avalonia.Platform;
-using Avalonia.Rendering;
-using Avalonia.Skia;
 using AppThere.Loki.Avalonia.Cache;
-using SkiaSharp;
 
 namespace AppThere.Loki.Avalonia.Controls;
 
-public sealed class LokiCompositionDrawOp : ICustomDrawOperation
+public sealed class LokiCompositionDrawOp
 {
+    private static readonly IBrush _placeholder =
+        new ImmutableSolidColorBrush(Color.FromRgb(220, 220, 220));
+
     /// <summary>
     /// Immutable snapshot of tiles to draw this frame.
     /// Each entry is (screen rect in DIPs, bitmap).
-    /// Built by LokiTileControl before calling InvalidateVisual().
+    /// Built by LokiTileControl before calling Render().
     /// </summary>
     public IReadOnlyList<PositionedTile> Tiles { get; }
 
-    /// <summary>Total bounds of the draw operation (required by Avalonia).</summary>
+    /// <summary>Total bounds of the draw area.</summary>
     public Rect Bounds { get; }
 
-    public LokiCompositionDrawOp(
-        IReadOnlyList<PositionedTile> tiles,
-        Rect bounds)
+    public LokiCompositionDrawOp(IReadOnlyList<PositionedTile> tiles, Rect bounds)
     {
         Tiles  = tiles;
         Bounds = bounds;
     }
 
     /// <summary>
-    /// Called by Avalonia on the render thread.
     /// Draws white background, then each tile bitmap at its screen rect.
+    /// Called by LokiTileControl on the UI thread during Render().
     /// </summary>
-    public void Render(ImmediateDrawingContext context)
+    public void Render(DrawingContext context)
     {
-        var skia = context.TryGetFeature<ISkiaSharpApiLeaseFeature>();
-        if (skia is null) return;
-
-        using var lease  = skia.Lease();
-        var canvas = lease.SkCanvas;
-
-        canvas.Clear(SKColors.White);
+        context.FillRectangle(Brushes.White, Bounds);
 
         foreach (var tile in Tiles)
         {
-            var r      = tile.ScreenRect;
-            var skRect = SKRect.Create((float)r.X, (float)r.Y, (float)r.Width, (float)r.Height);
-
             if (tile.Bitmap is not null)
-            {
-                using var fb = tile.Bitmap.Lock();
-                var info = new SKImageInfo(
-                    tile.Bitmap.PixelSize.Width, tile.Bitmap.PixelSize.Height,
-                    SKColorType.Bgra8888, SKAlphaType.Premul);
-                var bmp = new SKBitmap();
-                bmp.InstallPixels(info, fb.Address, fb.RowBytes);
-                canvas.DrawBitmap(bmp, skRect);
-                bmp.Dispose();
-            }
+                context.DrawImage(tile.Bitmap, tile.ScreenRect);
             else
-            {
-                using var paint = new SKPaint { Color = new SKColor(220, 220, 220) };
-                canvas.DrawRect(skRect, paint);
-            }
+                context.FillRectangle(_placeholder, tile.ScreenRect);
         }
     }
 
-    public bool HitTest(Point p) => Bounds.Contains(p);
-    public bool Equals(ICustomDrawOperation? other) => ReferenceEquals(this, other);
     public void Dispose() { /* tiles are owned by cache, not disposed here */ }
 }
 
@@ -90,6 +63,6 @@ public sealed class LokiCompositionDrawOp : ICustomDrawOperation
 /// Bitmap may be null if the tile is not yet rendered (placeholder drawn instead).
 /// </summary>
 public sealed record PositionedTile(
-    TileKey            Key,
-    Rect               ScreenRect,    // in DIPs
-    WriteableBitmap?   Bitmap);       // null = not yet rendered
+    TileKey           Key,
+    Rect              ScreenRect,   // in DIPs
+    WriteableBitmap?  Bitmap);      // null = not yet rendered

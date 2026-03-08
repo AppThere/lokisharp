@@ -105,7 +105,7 @@ public sealed class LokiTileControl : Control
         var snapshot = BuildTileSnapshot();
         _currentDrawOp?.Dispose();
         _currentDrawOp = new LokiCompositionDrawOp(snapshot, new Rect(Bounds.Size));
-        context.Custom(_currentDrawOp);
+        _currentDrawOp.Render(context);
     }
 
     // ── Layout ───────────────────────────────────────────────────────────────
