@@ -32,11 +32,11 @@ public sealed class LokiCompositionDrawOp : ICustomDrawOperation
     public IReadOnlyList<PositionedTile> Tiles { get; }
 
     /// <summary>Total bounds of the draw operation (required by Avalonia).</summary>
-    public Avalonia.Rect Bounds { get; }
+    public Rect Bounds { get; }
 
     public LokiCompositionDrawOp(
         IReadOnlyList<PositionedTile> tiles,
-        Avalonia.Rect bounds)
+        Rect bounds)
     {
         Tiles  = tiles;
         Bounds = bounds;
@@ -80,7 +80,7 @@ public sealed class LokiCompositionDrawOp : ICustomDrawOperation
         }
     }
 
-    public bool HitTest(Avalonia.Point p) => Bounds.Contains(p);
+    public bool HitTest(Point p) => Bounds.Contains(p);
     public bool Equals(ICustomDrawOperation? other) => ReferenceEquals(this, other);
     public void Dispose() { /* tiles are owned by cache, not disposed here */ }
 }
@@ -91,5 +91,5 @@ public sealed class LokiCompositionDrawOp : ICustomDrawOperation
 /// </summary>
 public sealed record PositionedTile(
     TileKey            Key,
-    Avalonia.Rect      ScreenRect,    // in DIPs
+    Rect               ScreenRect,    // in DIPs
     WriteableBitmap?   Bitmap);       // null = not yet rendered

@@ -24,7 +24,7 @@ using AppThere.Loki.LokiKit.View;
 
 namespace AppThere.Loki.Avalonia.Controls;
 
-public sealed class LokiTileControl : Control, ICustomHitTest
+public sealed class LokiTileControl : Control
 {
     // ── Avalonia StyledProperties ────────────────────────────────────────────
 
@@ -118,10 +118,6 @@ public sealed class LokiTileControl : Control, ICustomHitTest
         var zoom = Zoom;
         return new Size(size.Width * zoom, size.Height * zoom);
     }
-
-    // ── ICustomHitTest ───────────────────────────────────────────────────────
-
-    public bool HitTest(Point point) => Bounds.Contains(point);
 
     // ── Private helpers ──────────────────────────────────────────────────────
 

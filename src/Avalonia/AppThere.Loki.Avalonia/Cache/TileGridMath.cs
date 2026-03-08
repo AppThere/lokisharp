@@ -118,7 +118,7 @@ internal static class TileGridMath
     /// screenY = (tileDocY - scrollOffsetYPts) * zoom
     /// Width and height = tileSizePx (tiles are always tileSizePx DIPs on screen).
     /// </summary>
-    public static Avalonia.Rect ScreenRect(TileKey key, ViewportGeometry vp)
+    public static Rect ScreenRect(TileKey key, ViewportGeometry vp)
     {
         float tileDocX = key.TileX * vp.TileSizePx / vp.Zoom;
         float tileDocY = key.TileY * vp.TileSizePx / vp.Zoom;
@@ -126,6 +126,6 @@ internal static class TileGridMath
         double screenX = (tileDocX - vp.ScrollOffsetXPts) * vp.Zoom;
         double screenY = (tileDocY - vp.ScrollOffsetYPts) * vp.Zoom;
 
-        return new Avalonia.Rect(screenX, screenY, vp.TileSizePx, vp.TileSizePx);
+        return new Rect(screenX, screenY, vp.TileSizePx, vp.TileSizePx);
     }
 }
