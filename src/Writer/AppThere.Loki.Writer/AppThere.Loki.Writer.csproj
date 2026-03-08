@@ -14,4 +14,11 @@
     <ProjectReference Include="..\..\LokiKit\AppThere.Loki.LokiKit\AppThere.Loki.LokiKit.csproj" />
   </ItemGroup>
 
+  <!-- Allow the Writer unit test project to access internal types -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>AppThere.Loki.Tests.Writer</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 </Project>
