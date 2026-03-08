@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Kernel\AppThere.Loki.Skia\AppThere.Loki.Skia.csproj" />
+    <ProjectReference Include="..\..\..\tools\lokiprint\AppThere.Loki.Tools.LokiPrint.csproj" />
   </ItemGroup>
 
   <ItemGroup>
