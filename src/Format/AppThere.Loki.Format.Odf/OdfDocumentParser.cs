@@ -101,24 +101,29 @@ internal static class OdfDocumentParser
         var pp = style.Element(NsStyle + "paragraph-properties");
         var tp = style.Element(NsStyle + "text-properties");
 
+        ParseFontSize(tp?.Attribute(NsFo + "font-size")?.Value,
+            out var fontSizePts, out var fontSizePercentage);
+
         return new ParagraphStyleDef
         {
-            Id              = name,
-            ParentId        = parent,
-            IsAutomatic     = isAuto,
-            FontFamily      = tp?.Attribute(NsStyle + "font-name")?.Value
-                           ?? tp?.Attribute(NsFo   + "font-family")?.Value,
-            FontSizePts     = ParsePts(tp?.Attribute(NsFo + "font-size")?.Value),
-            Color           = tp?.Attribute(NsFo + "color")?.Value?.TrimStart('#'),
-            Alignment       = pp?.Attribute(NsFo + "text-align")?.Value,
-            MarginTopPts    = ParsePts(pp?.Attribute(NsFo + "margin-top")?.Value),
-            MarginBottomPts = ParsePts(pp?.Attribute(NsFo + "margin-bottom")?.Value),
-            MarginStartPts  = ParsePts(pp?.Attribute(NsFo + "margin-left")?.Value),
-            MarginEndPts    = ParsePts(pp?.Attribute(NsFo + "margin-right")?.Value),
-            SpaceBeforePts  = ParsePts(pp?.Attribute(NsFo + "margin-top")?.Value),
-            SpaceAfterPts   = ParsePts(pp?.Attribute(NsFo + "margin-bottom")?.Value),
-            Bold            = ParseBool(tp?.Attribute(NsFo + "font-weight")?.Value, "bold"),
-            Italic          = ParseBool(tp?.Attribute(NsFo + "font-style")?.Value, "italic"),
+            Id                 = name,
+            ParentId           = parent,
+            IsAutomatic        = isAuto,
+            FontFamily         = tp?.Attribute(NsStyle + "font-name")?.Value
+                              ?? tp?.Attribute(NsFo   + "font-family")?.Value,
+            FontSizePts        = fontSizePts,
+            FontSizePercentage = fontSizePercentage,
+            Color              = tp?.Attribute(NsFo + "color")?.Value?.TrimStart('#'),
+            Alignment          = pp?.Attribute(NsFo + "text-align")?.Value,
+            MarginTopPts       = ParsePts(pp?.Attribute(NsFo + "margin-top")?.Value),
+            MarginBottomPts    = ParsePts(pp?.Attribute(NsFo + "margin-bottom")?.Value),
+            MarginStartPts     = ParsePts(pp?.Attribute(NsFo + "margin-left")?.Value),
+            MarginEndPts       = ParsePts(pp?.Attribute(NsFo + "margin-right")?.Value),
+            SpaceBeforePts     = ParsePts(pp?.Attribute(NsFo + "margin-top")?.Value),
+            SpaceAfterPts      = ParsePts(pp?.Attribute(NsFo + "margin-bottom")?.Value),
+            Bold               = ParseBool(tp?.Attribute(NsFo + "font-weight")?.Value, "bold"),
+            Italic             = ParseBool(tp?.Attribute(NsFo + "font-style")?.Value, "italic"),
+            ListStyleId        = style.Attribute(NsStyle + "list-style-name")?.Value,
         };
     }
 
@@ -204,10 +209,12 @@ internal static class OdfDocumentParser
     private static ParagraphNode? ParseParagraph(
         XElement el, OdfStyleResolver resolver, ILokiLogger logger)
     {
-        var styleId = el.Attribute(NsText + "style-name")?.Value;
-        var paraStyle = resolver.ResolveParagraph(styleId, null);
-        var inlines = ParseInlines(el, paraStyle, resolver, logger);
-        return new ParagraphNode(inlines, paraStyle, styleId);
+        var autoStyleId = el.Attribute(NsText + "style-name")?.Value;
+        var paraStyle   = resolver.ResolveParagraph(autoStyleId, null);
+        var inlines     = ParseInlines(el, paraStyle, resolver, logger);
+        // Store the named (non-automatic) style name so callers can identify style by name.
+        var namedStyleId = resolver.ResolveNamedStyleId(autoStyleId);
+        return new ParagraphNode(inlines, paraStyle, namedStyleId);
     }
 
     private static ImmutableList<InlineNode> ParseInlines(
@@ -275,6 +282,33 @@ internal static class OdfDocumentParser
         if (string.IsNullOrWhiteSpace(value)) return null;
         var pts = OdfUnitConverter.ToPoints(value);
         return pts > 0f ? pts : null;
+    }
+
+    /// <summary>
+    /// Splits a raw fo:font-size attribute value into either an absolute point value
+    /// or a percentage multiplier. Exactly one output is non-null; both are null on failure.
+    /// </summary>
+    private static void ParseFontSize(string? raw, out float? pts, out float? percentage)
+    {
+        pts        = null;
+        percentage = null;
+        if (string.IsNullOrWhiteSpace(raw)) return;
+
+        var trimmed = raw.Trim();
+        if (trimmed.EndsWith('%'))
+        {
+            if (float.TryParse(
+                    trimmed[..^1].Trim(),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var pct) && pct > 0f)
+                percentage = pct;
+        }
+        else
+        {
+            var result = OdfUnitConverter.ToPoints(trimmed);
+            if (result > 0f) pts = result;
+        }
     }
 
     private static bool? ParseBool(string? value, string trueValue) =>

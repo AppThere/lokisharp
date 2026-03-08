@@ -8,14 +8,18 @@
 //          Last line and forced-break lines are NOT justified (r clamped to 0).
 //          Baseline is at 80% of LineHeightPts (simple approximation).
 //          Colour comes from the paragraph's resolved Color (no per-run colour yet).
+//          Bullet glyphs are prepended before the first line of list-item paragraphs.
 // DEPENDS: PageLayout, PaintScene, PaintBand, GlyphRunNode, GlyphRun, TextPaint,
-//          RectF, PointF, PageStyle, ParagraphStyle
+//          RectF, PointF, PageStyle, ParagraphStyle, IFontManager, LokiTextShaper
 // USED BY: LayoutEngine (Stage 4)
 // PHASE:   3
 // ADR:     ADR-008
 
 using System.Collections.Immutable;
+using AppThere.Loki.Kernel.Fonts;
 using AppThere.Loki.Kernel.Geometry;
+using AppThere.Loki.Kernel.Logging;
+using AppThere.Loki.Skia.Fonts;
 using AppThere.Loki.Skia.Scene;
 using AppThere.Loki.Skia.Scene.Nodes;
 using AppThere.Loki.Writer.Model;
@@ -25,6 +29,13 @@ namespace AppThere.Loki.Writer.Layout;
 
 internal sealed class PaintSceneBuilder
 {
+    private readonly LokiTextShaper _shaper;
+
+    public PaintSceneBuilder(IFontManager fontManager, ILokiLogger logger)
+    {
+        _shaper = new LokiTextShaper(fontManager, logger);
+    }
+
     public PaintScene Build(PageLayout page, PageStyle pageStyle)
     {
         var builder = PaintScene.CreateBuilder(page.PageIndex)
@@ -38,7 +49,7 @@ internal sealed class PaintSceneBuilder
 
     // ── Per-paragraph ─────────────────────────────────────────────────────────
 
-    private static void BuildParaBands(
+    private void BuildParaBands(
         PaintScene.Builder builder,
         PlacedParagraph   placed,
         PageStyle         pageStyle)
@@ -52,25 +63,32 @@ internal sealed class PaintSceneBuilder
             var line  = para.Lines[li];
             float yLine = yBase + li * style.LineHeightPts;
 
-            var nodes = BuildLineNodes(line, style, pageStyle, yLine);
+            var nodes = BuildLineNodes(line, style, pageStyle, yLine, isFirstLine: li == 0);
             builder.AddBand(new PaintBand(yLine, style.LineHeightPts, nodes, 0L));
         }
     }
 
     // ── Per-line ──────────────────────────────────────────────────────────────
 
-    private static ImmutableArray<PaintNode> BuildLineNodes(
+    private ImmutableArray<PaintNode> BuildLineNodes(
         BrokenLine      line,
         ParagraphStyle  style,
         PageStyle       pageStyle,
-        float           yLine)
+        float           yLine,
+        bool            isFirstLine)
     {
         var nodes    = ImmutableArray.CreateBuilder<PaintNode>();
-        float x      = pageStyle.MarginStartPts;
         float baseline = yLine + style.LineHeightPts * 0.8f;
 
         // Do not justify last or forced-break lines
         float r = (line.IsLastLine || line.IsForcedBreak) ? 0f : line.AdjustmentRatio;
+
+        // For the first line of a list paragraph, emit a bullet glyph and indent text.
+        float textX = pageStyle.MarginStartPts;
+        if (isFirstLine && style.ListStyleId is not null)
+            textX = EmitBullet(nodes, style, pageStyle, yLine, baseline);
+
+        float x = textX;
 
         foreach (var item in line.Items)
         {
@@ -109,5 +127,54 @@ internal sealed class PaintSceneBuilder
         }
 
         return nodes.ToImmutable();
+    }
+
+    // ── Bullet emission ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Shapes and emits a bullet GlyphRunNode for the current list level.
+    /// Returns the x coordinate where text content should begin.
+    /// </summary>
+    private float EmitBullet(
+        ImmutableArray<PaintNode>.Builder nodes,
+        ParagraphStyle style,
+        PageStyle      pageStyle,
+        float          yLine,
+        float          baseline)
+    {
+        var bulletChar = style.ListLevel switch
+        {
+            0 => "•",   // U+2022
+            1 => "◦",   // U+25E6
+            2 => "▪",   // U+25AA
+            _ => "•",
+        };
+
+        float bulletX = pageStyle.MarginStartPts + (style.ListLevel * 18f);
+        var fontDesc  = style.Font with { SizeInPoints = style.FontSizePts };
+
+        IReadOnlyList<GlyphRun> runs;
+        try { runs = _shaper.Shape(bulletChar, fontDesc); }
+        catch { runs = ImmutableArray<GlyphRun>.Empty; }
+
+        if (runs.Count == 0)
+            return bulletX + style.FontSizePts * 0.6f + 6f;   // fallback: estimated width
+
+        float bulletWidth = runs.Sum(r => r.TotalAdvance);
+        var bRun = runs[0];
+
+        var glyphRun = new GlyphRun(
+            bRun.Typeface,
+            bRun.SizeInPoints,
+            bRun.GlyphIds,
+            bRun.Advances,
+            null, null);
+
+        var bounds = new RectF(bulletX, yLine, bulletWidth, style.LineHeightPts);
+        var origin = new PointF(bulletX, baseline);
+        nodes.Add(new GlyphRunNode(bounds, origin,
+            ImmutableArray.Create<GlyphRun>(glyphRun), new TextPaint(style.Color)));
+
+        return bulletX + bulletWidth + 6f;
     }
 }

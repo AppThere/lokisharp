@@ -54,7 +54,35 @@ internal sealed class OdfStyleResolver : IStyleResolver
         var chain = BuildCharChain(styleId);
         foreach (var def in chain) @base = ApplyChar(@base, def);
         if (directFormatting is not null) @base = ApplyChar(@base, directFormatting);
+
+        // Synchronise Font.Weight with the resolved Bold flag so IFontManager
+        // receives a descriptor that correctly requests the bold variant.
+        if (@base.Bold && @base.Font.Weight < FontWeight.Bold)
+            @base = @base with { Font = @base.Font with { Weight = FontWeight.Bold } };
+        else if (!@base.Bold && @base.Font.Weight >= FontWeight.Bold)
+            @base = @base with { Font = @base.Font with { Weight = FontWeight.Regular } };
+
         return @base;
+    }
+
+    /// <summary>
+    /// Returns the first non-automatic style ID in the parent chain for the given
+    /// style ID. Used by the parser to store a human-readable style name on nodes.
+    /// </summary>
+    public string? ResolveNamedStyleId(string? styleId)
+    {
+        if (styleId is null) return null;
+        var current = styleId;
+        while (current is not null)
+        {
+            if (_registry.ParagraphStyles.TryGetValue(current, out var def))
+            {
+                if (!def.IsAutomatic) return current;
+                current = def.ParentId;
+            }
+            else break;
+        }
+        return styleId;
     }
 
     // ── Para cascade ──────────────────────────────────────────────────────────
@@ -92,10 +120,17 @@ internal sealed class OdfStyleResolver : IStyleResolver
             font = font with { Weight = weight, Slant = slant };
         }
 
+        // Resolve font size: percentage is relative to the running inherited size (default 12pt).
+        float fontSize;
+        if (d.FontSizePercentage.HasValue)
+            fontSize = s.FontSizePts * (d.FontSizePercentage.Value / 100f);
+        else
+            fontSize = d.FontSizePts ?? s.FontSizePts;
+
         return s with
         {
             Font              = font,
-            FontSizePts       = d.FontSizePts   ?? s.FontSizePts,
+            FontSizePts       = fontSize,
             Color             = ParseColor(d.Color) ?? s.Color,
             Alignment         = ParseAlignment(d.Alignment) ?? s.Alignment,
             MarginPts         = ApplyThickness(s.MarginPts,

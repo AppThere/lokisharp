@@ -38,7 +38,7 @@ internal sealed class LayoutEngine : ILayoutEngine
         var measurer      = new InlineMeasurer(_fontManager, _logger);
         var breaker       = new KnuthPlassBreaker();
         var pageBreaker   = new PageBreaker();
-        var sceneBuilder  = new PaintSceneBuilder();
+        var sceneBuilder  = new PaintSceneBuilder(_fontManager, _logger);
 
         var pageStyle   = document.DefaultPageStyle;
         var lineWidth   = pageStyle.ContentWidthPts;

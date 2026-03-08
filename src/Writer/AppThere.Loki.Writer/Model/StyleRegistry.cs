@@ -53,6 +53,7 @@ public sealed class ParagraphStyleDef
     // Raw property values — all nullable (null = inherit)
     public string?  FontFamily          { get; init; }
     public float?   FontSizePts         { get; init; }
+    public float?   FontSizePercentage  { get; init; }  // set when fo:font-size is e.g. "150%"
     public string?  Color               { get; init; }  // hex string e.g. "000000"
     public string?  Alignment           { get; init; }  // "left","right","center","justify"
     public float?   MarginTopPts        { get; init; }
