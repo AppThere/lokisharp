@@ -3,33 +3,37 @@
 // PURPOSE: Stage 1 of the layout pipeline (ADR-008). Walks a ParagraphNode's
 //          inline content and converts it into a sequence of LayoutItems
 //          (Box/Glue/Penalty) ready for Knuth-Plass line breaking.
+//          Uses LokiTextShaper for glyph shaping and advance measurement.
 //          Does NOT break lines — that is KnuthPlassBreaker's responsibility.
-//          Does NOT use HarfBuzz shaping — uses SKFont glyph metrics directly.
-// DEPENDS: IFontManager, ILokiLogger, ParagraphNode, RunNode, HardLineBreakNode,
-//          TabNode, MeasuredParagraph, LayoutItem hierarchy, GlyphCluster
+// DEPENDS: IFontManager, ILokiLogger, LokiTextShaper, ParagraphNode, RunNode,
+//          HardLineBreakNode, TabNode, MeasuredParagraph, LayoutItem hierarchy,
+//          GlyphCluster, FontDescriptor, GlyphRun
 // USED BY: LayoutEngine (Stage 1)
 // PHASE:   3
 // ADR:     ADR-008
 
 using System.Collections.Immutable;
 using System.Text;
+using AppThere.Loki.Kernel.Fonts;
 using AppThere.Loki.Kernel.Logging;
 using AppThere.Loki.Skia.Fonts;
+using AppThere.Loki.Skia.Scene;
 using AppThere.Loki.Writer.Model;
 using AppThere.Loki.Writer.Model.Inlines;
-using SkiaSharp;
 
 namespace AppThere.Loki.Writer.Layout;
 
 internal sealed class InlineMeasurer
 {
-    private readonly IFontManager _fontManager;
-    private readonly ILokiLogger  _logger;
+    private readonly IFontManager    _fontManager;
+    private readonly ILokiLogger     _logger;
+    private readonly LokiTextShaper  _shaper;
 
     public InlineMeasurer(IFontManager fontManager, ILokiLogger logger)
     {
         _fontManager = fontManager ?? throw new ArgumentNullException(nameof(fontManager));
         _logger      = logger      ?? throw new ArgumentNullException(nameof(logger));
+        _shaper      = new LokiTextShaper(fontManager, logger);
     }
 
     /// <summary>
@@ -78,39 +82,24 @@ internal sealed class InlineMeasurer
 
     private void ProcessRun(RunNode run, List<LayoutItem> items)
     {
-        if (!_fontManager.TryGetTypeface(run.Style.Font, out var lokiTypeface)
-            || lokiTypeface is null)
-        {
-            _logger.Warn("Font '{0}' not resolved; falling back to Latin fallback.",
-                run.Style.Font.FamilyName);
-            lokiTypeface = _fontManager.GetFallbackForScript(UnicodeScript.Latin);
-        }
+        // Build a FontDescriptor that reflects the run's resolved size
+        var fontDesc = run.Style.Font with { SizeInPoints = run.Style.FontSizePts };
 
-        // Resolve SKTypeface from ILokiTypeface by family name.
-        // Avoids InternalsVisibleTo dependency on SkiaTypeface.Inner.
-        var matchedSk = SKFontManager.Default.MatchFamily(lokiTypeface.FamilyName);
-        var skTypeface = matchedSk ?? SKTypeface.Default;
-        try
-        {
-            using var skFont = new SKFont(skTypeface, run.Style.FontSizePts);
-            var spaceWidth = skFont.MeasureText(" ");
-            ProcessText(run.Text, lokiTypeface, run.Style.FontSizePts,
-                        skFont, spaceWidth, items);
-        }
-        finally
-        {
-            matchedSk?.Dispose();
-        }
+        // Measure one space to set inter-word glue width
+        var spaceRuns = ShapeQuiet(" ", fontDesc);
+        var spaceWidth = spaceRuns.Count > 0
+            ? spaceRuns[0].TotalAdvance
+            : run.Style.FontSizePts * 0.25f;   // fallback: ¼ em
+
+        ProcessText(run.Text, fontDesc, spaceWidth, items);
     }
 
     // ── Text tokenisation ─────────────────────────────────────────────────────
 
-    private static void ProcessText(
-        string         text,
-        ILokiTypeface  typeface,
-        float          fontSize,
-        SKFont         skFont,
-        float          spaceWidth,
+    private void ProcessText(
+        string           text,
+        FontDescriptor   fontDesc,
+        float            spaceWidth,
         List<LayoutItem> items)
     {
         var wordBuffer = new StringBuilder();
@@ -121,7 +110,7 @@ internal sealed class InlineMeasurer
             {
                 if (wordBuffer.Length > 0)
                 {
-                    EmitWordTokens(wordBuffer.ToString(), typeface, fontSize, skFont, items);
+                    EmitWordTokens(wordBuffer.ToString(), fontDesc, items);
                     wordBuffer.Clear();
                 }
                 // Inter-word glue + neutral break opportunity
@@ -135,16 +124,14 @@ internal sealed class InlineMeasurer
         }
 
         if (wordBuffer.Length > 0)
-            EmitWordTokens(wordBuffer.ToString(), typeface, fontSize, skFont, items);
+            EmitWordTokens(wordBuffer.ToString(), fontDesc, items);
     }
 
     // ── Soft-hyphen splitting ─────────────────────────────────────────────────
 
-    private static void EmitWordTokens(
-        string         word,
-        ILokiTypeface  typeface,
-        float          fontSize,
-        SKFont         skFont,
+    private void EmitWordTokens(
+        string           word,
+        FontDescriptor   fontDesc,
         List<LayoutItem> items)
     {
         // U+00AD SOFT HYPHEN marks a discouraged-but-allowed break opportunity
@@ -152,7 +139,7 @@ internal sealed class InlineMeasurer
         for (var i = 0; i < segments.Length; i++)
         {
             if (segments[i].Length > 0)
-                EmitBox(segments[i], typeface, fontSize, skFont, items);
+                EmitBox(segments[i], fontDesc, items);
 
             if (i < segments.Length - 1)
                 items.Add(new PenaltyItem(new Penalty(50f, true)));
@@ -161,19 +148,48 @@ internal sealed class InlineMeasurer
 
     // ── Glyph box emission ────────────────────────────────────────────────────
 
-    private static void EmitBox(
-        string         text,
-        ILokiTypeface  typeface,
-        float          fontSize,
-        SKFont         skFont,
+    private void EmitBox(
+        string           text,
+        FontDescriptor   fontDesc,
         List<LayoutItem> items)
     {
-        var glyphIds = skFont.GetGlyphs(text);
-        var advances = skFont.GetGlyphWidths(glyphIds);
-        var totalWidth = 0f;
-        foreach (var a in advances) totalWidth += a;
+        var runs = ShapeQuiet(text, fontDesc);
+        if (runs.Count == 0) return;
 
-        var cluster = new GlyphCluster(glyphIds, advances, typeface, fontSize);
+        // Merge all sub-runs (typeface splits) into a single GlyphCluster
+        var glyphIdList  = new List<ushort>();
+        var advanceList  = new List<float>();
+        float totalWidth = 0f;
+
+        foreach (var run in runs)
+        {
+            foreach (var id in run.GlyphIds)   glyphIdList.Add(id);
+            foreach (var adv in run.Advances)   advanceList.Add(adv);
+            totalWidth += run.TotalAdvance;
+        }
+
+        var cluster = new GlyphCluster(
+            glyphIdList.ToArray(),
+            advanceList.ToArray(),
+            runs[0].Typeface,       // renderer uses first run's typeface
+            fontDesc.SizeInPoints);
+
         items.Add(new BoxItem(new Box(totalWidth, cluster)));
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /// <summary>Shape text, returning empty on any failure (never throws).</summary>
+    private IReadOnlyList<GlyphRun> ShapeQuiet(string text, FontDescriptor fontDesc)
+    {
+        try
+        {
+            return _shaper.Shape(text, fontDesc);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn("InlineMeasurer: shaping failed for '{0}': {1}", text, ex.Message);
+            return ImmutableArray<GlyphRun>.Empty;
+        }
     }
 }

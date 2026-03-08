@@ -228,9 +228,9 @@ internal sealed class KnuthPlassBreaker
     {
         var lines      = ImmutableArray.CreateBuilder<BrokenLine>();
         var lineItems  = ImmutableArray.CreateBuilder<LayoutItem>();
-        var stagingIdx = 0;   // index into measured.Items for start of current line
+        // stagingIdx not used; items tracked via lineItems builder directly
         float lineWidth = 0f;
-        int   lastBreakableRelative = -1; // relative to stagingIdx
+        int   lastBreakableRelative = -1; // index into lineItems at last break point
         float widthAtLastBreakable  = 0f;
         var   items = measured.Items;
 
