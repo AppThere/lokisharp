@@ -142,7 +142,7 @@ public sealed class TileRendererTests
             new RectF(40f, 40f, 120f, 120f),
             content,
             new PointF(10f, 10f),
-            blurRadius: 5f,
+            BlurRadius: 5f,
             ShadowColor: LokiColor.Black);
 
         var band  = new PaintBand(0f, 842f, ImmutableArray.Create<PaintNode>(shadow), 1L);

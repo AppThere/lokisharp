@@ -311,8 +311,10 @@ public sealed class LokiSkiaPainterTests : IDisposable
         var typeface   = new SkiaTypeface(skTypeface, isBundled: false, ownsTypeface: false, isVariable: false);
 
         using var skFont   = new SKFont(skTypeface, 24f);
-        var       glyphIds = skFont.GetGlyphs(text);
-        var       advances = skFont.GetGlyphWidths(glyphIds);
+        var       glyphIds = new ushort[skFont.CountGlyphs(text)];
+        skFont.GetGlyphs(text.AsSpan(), glyphIds.AsSpan());
+        var       advances = new float[glyphIds.Length];
+        skFont.GetGlyphWidths(glyphIds.AsSpan(), advances.AsSpan());
 
         return new GlyphRun(
             typeface,
