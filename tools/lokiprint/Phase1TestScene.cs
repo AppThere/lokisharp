@@ -25,7 +25,7 @@ using SkiaSharp;
 
 namespace AppThere.Loki.Tools.LokiPrint;
 
-internal static class Phase1TestScene
+public static class Phase1TestScene
 {
     private const float PageW = 595f;
     private const float PageH = 842f;
@@ -35,11 +35,26 @@ internal static class Phase1TestScene
     /// The returned IImageStore is populated with the checkerboard PNG used by
     /// the ImageNode in Band 1. Callers must pass this store to TileRenderer.
     /// </summary>
+    /// <param name="externalStore">
+    /// Optional existing image store to populate. When non-null the checkerboard
+    /// image is registered into it instead of a newly created store. Pass the
+    /// caller-owned store (e.g. GoldenTestBase.ImageStore) so the renderer can
+    /// resolve images without a separate store hand-off.
+    /// </param>
     public static (PaintScene scene, IImageStore imageStore)
-        Build(IFontManager fontManager, ILokiLogger logger)
+        Build(IFontManager fontManager, ILokiLogger logger,
+              IImageStore? externalStore = null)
     {
-        var codec      = new SkiaImageCodec(logger);
-        var imageStore = new SkiaImageStore(codec, logger);
+        IImageStore imageStore;
+        if (externalStore is not null)
+        {
+            imageStore = externalStore;
+        }
+        else
+        {
+            var codec = new SkiaImageCodec(logger);
+            imageStore = new SkiaImageStore(codec, logger);
+        }
 
         var (imageRef, pngBytes) = CreateCheckerboardPng();
         imageStore.Register(imageRef, pngBytes.AsMemory());
