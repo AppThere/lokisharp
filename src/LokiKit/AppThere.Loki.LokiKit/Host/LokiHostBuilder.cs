@@ -5,13 +5,16 @@
 //          Extension methods in platform assemblies add further Use* overloads.
 //          Phase 2: UseHeadlessSurfaces, UseSkiaRenderer, UseSkiaFonts,
 //                   UseConsoleLogger are the only built-in registrations.
-// DEPENDS: ILokiHost, Microsoft.Extensions.DependencyInjection
+// DEPENDS: ILokiHost, ILokiLogger, IFontManager, ITileRenderer, IImageCodec,
+//          IImageStore, IRenderSurfaceFactory, ILokiEngine,
+//          Microsoft.Extensions.DependencyInjection
 // USED BY: lokiprint CLI, Avalonia app host (Phase 4+), test harnesses
 // PHASE:   2
 // ADR:     ADR-006
 
 using AppThere.Loki.Kernel.Images;
 using AppThere.Loki.Kernel.Logging;
+using AppThere.Loki.LokiKit.Engine;
 using AppThere.Loki.Skia.Fonts;
 using AppThere.Loki.Skia.Images;
 using AppThere.Loki.Skia.Rendering;
@@ -42,9 +45,10 @@ public sealed class LokiHostBuilder
 
     /// <summary>
     /// Register the SkiaSharp tile renderer and image pipeline.
-    /// Registers: ITileRenderer → TileRenderer (Singleton)
-    ///            IImageCodec   → SkiaImageCodec (Singleton)
-    ///            IImageStore   → SkiaImageStore (Singleton)
+    /// Registers: ITileRenderer  → TileRenderer  (Singleton)
+    ///            IImageCodec    → SkiaImageCodec (Singleton)
+    ///            IImageStore    → SkiaImageStore  (Singleton)
+    ///            ILokiEngine    → StubEngine      (Scoped — one per document)
     /// Requires UseHeadlessSurfaces or UseAvaloniaSurfaces to be called first.
     /// </summary>
     public LokiHostBuilder UseSkiaRenderer()
@@ -52,6 +56,7 @@ public sealed class LokiHostBuilder
         _services.AddSingleton<ITileRenderer, TileRenderer>();
         _services.AddSingleton<IImageCodec, SkiaImageCodec>();
         _services.AddSingleton<IImageStore, SkiaImageStore>();
+        _services.AddScoped<ILokiEngine, StubEngine>();
         _rendererRegistered = true;
         return this;
     }
@@ -73,8 +78,7 @@ public sealed class LokiHostBuilder
     /// </summary>
     public LokiHostBuilder UseConsoleLogger()
     {
-        // ConsoleLogger implemented in Phase 2 Track A
-        _services.AddSingleton<ILokiLogger, NullLokiLogger>();
+        _services.AddSingleton<ILokiLogger, ConsoleLogger>();
         _loggerRegistered = true;
         return this;
     }
@@ -108,13 +112,11 @@ public sealed class LokiHostBuilder
             throw new InvalidOperationException(
                 "No logger registered. Call UseConsoleLogger() or UseAvaloniaLogger().");
 
-        // LokiHostImpl implemented in Phase 2 Track A Task 1
-        throw new NotImplementedException(
-            "LokiHostImpl not yet implemented. Run Phase 2 Track A Task 1.");
+        _services.AddSingleton<ILokiHost, LokiHostImpl>();
 
-        // var provider = _services.BuildServiceProvider(
-        //     new ServiceProviderOptions { ValidateOnBuild = true });
+        var provider = _services.BuildServiceProvider(
+            new ServiceProviderOptions { ValidateOnBuild = true });
 
-        // return provider.GetRequiredService<ILokiHost>();
+        return provider.GetRequiredService<ILokiHost>();
     }
 }

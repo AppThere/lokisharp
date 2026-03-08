@@ -5,7 +5,7 @@
 //          Each view owns its own tile cache and scroll/zoom state.
 //          Fires TileInvalidated when the document changes and tiles must
 //          be re-requested by the UI.
-// DEPENDS: ILokiDocument, TileRequest, TileInvalidatedEventArgs, SKBitmap
+// DEPENDS: ILokiDocument, TileRequest, PdfMetadata, TileInvalidatedEventArgs, SKBitmap
 // USED BY: lokiprint CLI, Avalonia tile control (Phase 4+), rendering tests
 // PHASE:   2
 // ADR:     ADR-005
@@ -14,6 +14,7 @@ using AppThere.Loki.Kernel.Geometry;
 using AppThere.Loki.LokiKit.Document;
 using AppThere.Loki.LokiKit.Events;
 using AppThere.Loki.Skia.Rendering;
+using AppThere.Loki.Skia.Surfaces;
 using SkiaSharp;
 
 namespace AppThere.Loki.LokiKit.View;
@@ -57,6 +58,16 @@ public interface ILokiView : IDisposable
     /// </summary>
     Task<SKBitmap> RenderTileAsync(
         TileRequest request,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Renders all parts of the document to a PDF stream.
+    /// Convenience wrapper over ITileRenderer.RenderToPdfAsync.
+    /// The view assembles the PaintScene list from all document parts.
+    /// </summary>
+    Task RenderToPdfAsync(
+        Stream output,
+        PdfMetadata meta,
         CancellationToken ct = default);
 
     // ── Layout queries ────────────────────────────────────────────────────────

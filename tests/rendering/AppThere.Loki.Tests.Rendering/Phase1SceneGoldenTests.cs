@@ -15,7 +15,7 @@
 using System.Collections.Immutable;
 using AppThere.Loki.Skia.Scene;
 using AppThere.Loki.Skia.Surfaces;
-using AppThere.Loki.Tools.LokiPrint;
+using AppThere.Loki.Skia.Testing;
 using FluentAssertions;
 using SkiaSharp;
 using Xunit;

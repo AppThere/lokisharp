@@ -12,6 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Kernel\AppThere.Loki.Kernel\AppThere.Loki.Kernel.csproj" />
     <ProjectReference Include="..\..\..\src\Kernel\AppThere.Loki.Skia\AppThere.Loki.Skia.csproj" />
+    <ProjectReference Include="..\..\..\src\LokiKit\AppThere.Loki.LokiKit\AppThere.Loki.LokiKit.csproj" />
   </ItemGroup>
 
   <ItemGroup>

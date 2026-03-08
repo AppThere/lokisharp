@@ -1,27 +1,31 @@
 // LAYER:   AppThere.Loki.Tools.LokiPrint — Host
 // KIND:    Implementation
 // PURPOSE: Implements the 'test-render' sub-command for lokiprint.
-//          Parses --output, --tile, and --zoom arguments; builds Phase1TestScene;
-//          then exports to PDF (--output *.pdf) or a PNG tile (--output *.png --tile col,row).
-//          Creates TileRenderer with the IImageStore returned by Phase1TestScene.Build()
-//          so that the ImageNode's checkerboard PNG resolves correctly.
+//          Parses --output, --tile, and --zoom arguments; opens a document via
+//          ILokiHost; creates a view; exports to PDF or PNG tile.
+//          PDF: uses view.RenderToPdfAsync — no casting required.
+//          PNG: uses view.RenderTileAsync(TileRequest.ForHeadless(...)).
+//          Disposes view and document on completion.
 //          Does NOT expose SkiaSharp types outside this file.
-// DEPENDS: Phase1TestScene, TileRenderer, HeadlessSurfaceFactory, TileRequest,
-//          PdfMetadata, IFontManager, ILokiLogger
+// DEPENDS: ILokiHost, ILokiView, ILokiDocument, TileRequest, PdfMetadata, OpenOptions
 // USED BY: Program
-// PHASE:   1
+// PHASE:   2
 
-using AppThere.Loki.Kernel.Logging;
-using AppThere.Loki.Skia.Fonts;
+using AppThere.Loki.LokiKit.Host;
+using AppThere.Loki.LokiKit.View;
 using AppThere.Loki.Skia.Rendering;
 using AppThere.Loki.Skia.Surfaces;
 using SkiaSharp;
 
 namespace AppThere.Loki.Tools.LokiPrint;
 
-internal static class TestRenderCommand
+internal sealed class TestRenderCommand
 {
-    public static int Run(string[] args, IFontManager fontManager, ILokiLogger logger)
+    private readonly ILokiHost _host;
+
+    public TestRenderCommand(ILokiHost host) => _host = host;
+
+    public async Task<int> ExecuteAsync(string[] args)
     {
         string? output  = null;
         float   zoom    = 1f;
@@ -50,16 +54,16 @@ internal static class TestRenderCommand
 
         try
         {
-            var (scene, imageStore) = Phase1TestScene.Build(fontManager, logger);
-            var factory             = new HeadlessSurfaceFactory(logger);
-            var renderer            = new TileRenderer(factory, imageStore, logger);
+            await using var document = await _host.OpenAsync(
+                Stream.Null, OpenOptions.Default).ConfigureAwait(false);
+            using var view = _host.CreateView(document);
 
             var ext = Path.GetExtension(output).ToLowerInvariant();
 
             if (ext == ".pdf" && !hasTile)
-                RenderPdf(output, scene, renderer);
+                await RenderPdfAsync(output, view).ConfigureAwait(false);
             else if (ext == ".png" && hasTile)
-                RenderTilePng(output, scene, renderer, zoom, col, row);
+                await RenderTilePngAsync(output, view, zoom, col, row).ConfigureAwait(false);
             else
             {
                 Console.Error.WriteLine(
@@ -82,23 +86,22 @@ internal static class TestRenderCommand
 
     // ── Output renderers ──────────────────────────────────────────────────────
 
-    private static void RenderPdf(string path, AppThere.Loki.Skia.Scene.PaintScene scene,
-                                   TileRenderer renderer)
+    private static async Task RenderPdfAsync(string path, ILokiView view)
     {
-        var meta = new PdfMetadata("LokiPrint Phase 1 Test", "lokiprint", "AppThere Loki");
-        using var fs = File.Create(path);
-        renderer.RenderToPdfAsync(new[] { scene }, fs, meta).GetAwaiter().GetResult();
+        var meta = new PdfMetadata("LokiPrint Phase 2 Test", "lokiprint", "AppThere Loki");
+        await using var fs = File.Create(path);
+        await view.RenderToPdfAsync(fs, meta).ConfigureAwait(false);
     }
 
-    private static void RenderTilePng(string path, AppThere.Loki.Skia.Scene.PaintScene scene,
-                                       TileRenderer renderer, float zoom, int col, int row)
+    private static async Task RenderTilePngAsync(
+        string path, ILokiView view, float zoom, int col, int row)
     {
-        var request  = TileRequest.ForHeadless(0, zoom, col, row);
-        using var bitmap = renderer.RenderTileAsync(scene, request).GetAwaiter().GetResult();
+        var request = TileRequest.ForHeadless(0, zoom, col, row);
+        using var bitmap = await view.RenderTileAsync(request).ConfigureAwait(false);
 
         using var skImage = SKImage.FromBitmap(bitmap);
         using var encoded = skImage.Encode(SKEncodedImageFormat.Png, 100);
-        using var fs      = File.Create(path);
+        await using var fs = File.Create(path);
         encoded.SaveTo(fs);
     }
 

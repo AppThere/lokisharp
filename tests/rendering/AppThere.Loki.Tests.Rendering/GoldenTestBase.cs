@@ -25,6 +25,7 @@ using AppThere.Loki.Skia.Rendering;
 using AppThere.Loki.Skia.Scene;
 using AppThere.Loki.Skia.Surfaces;
 using SkiaSharp;
+using System.Runtime.InteropServices;
 using Xunit;
 
 namespace AppThere.Loki.Tests.Rendering;
@@ -79,6 +80,19 @@ public abstract class GoldenTestBase
     /// </summary>
     protected void AssertMatchesGolden(SKBitmap actual, string goldenName)
     {
+        // Golden PNGs are generated on Linux (FreeType rasteriser).
+        // CoreText (macOS) and DirectWrite (Windows) produce sub-pixel differences
+        // that cause false failures. Only perform the pixel comparison on Linux so
+        // CI is the authoritative golden checker; the full render path still runs.
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            // Golden PNGs are Linux-only baselines. Pixel comparison skipped on
+            // macOS/Windows — rendering still exercised above.
+            Console.WriteLine(
+                $"[golden skip] {goldenName} — not Linux ({RuntimeInformation.OSDescription})");
+            return;
+        }
+
         Directory.CreateDirectory(GoldensDir);
         var goldenPath = Path.Combine(GoldensDir, goldenName);
 
