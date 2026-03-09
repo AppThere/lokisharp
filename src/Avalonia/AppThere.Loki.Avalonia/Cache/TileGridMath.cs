@@ -128,4 +128,53 @@ internal static class TileGridMath
 
         return new Rect(screenX, screenY, vp.TileSizePx, vp.TileSizePx);
     }
+
+    /// <summary>
+    /// Total virtual canvas height in points for a document with the
+    /// given page count, page height, and gap between pages.
+    /// </summary>
+    public static float CanvasHeightPts(
+        int   pageCount,
+        float pageHeightPts,
+        float pageGapPts)
+        => pageCount * (pageHeightPts + pageGapPts);
+
+    /// <summary>
+    /// Which page (0-based) contains the given canvas Y coordinate.
+    /// Clamps to [0, pageCount-1].
+    /// </summary>
+    public static int PageForCanvasY(
+        float canvasYPts,
+        float pageHeightPts,
+        float pageGapPts,
+        int   pageCount)
+        => Math.Clamp((int)(canvasYPts / (pageHeightPts + pageGapPts)),
+                      0, pageCount - 1);
+
+    /// <summary>
+    /// Local Y coordinate within a page (0 = page top).
+    /// Returns negative values for coordinates in the gap above the page.
+    /// </summary>
+    public static float LocalYOnPage(
+        float canvasYPts,
+        int   pageIndex,
+        float pageHeightPts,
+        float pageGapPts)
+        => canvasYPts - pageIndex * (pageHeightPts + pageGapPts);
+
+    /// <summary>
+    /// True if the given canvas Y range [yMin, yMax] falls entirely
+    /// within the inter-page gap (not on any page content).
+    /// </summary>
+    public static bool IsInPageGap(
+        float yMinPts,
+        float yMaxPts,
+        int   pageIndex,
+        float pageHeightPts,
+        float pageGapPts)
+    {
+        float pageTop    = pageIndex * (pageHeightPts + pageGapPts);
+        float pageBottom = pageTop + pageHeightPts;
+        return yMinPts >= pageBottom && yMaxPts <= pageBottom + pageGapPts;
+    }
 }

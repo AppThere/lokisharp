@@ -32,6 +32,9 @@ public static class LokiHostBuilderExtensions
         {
             services.AddSingleton(resolved);
             services.AddSingleton<ISurfaceFactory, AvaloniaSurfaceFactory>();
+            
+            // In Avalonia, LokiTileControl needs LokiHostOptions if it was injected. 
+            // It gets it automatically because we registered it in LokHostBuilder.Build().
         });
 
         return builder;

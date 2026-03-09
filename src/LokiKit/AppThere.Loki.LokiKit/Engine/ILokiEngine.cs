@@ -85,4 +85,24 @@ public interface ILokiEngine : IAsyncDisposable
     /// Payload: set of invalidated part indices.
     /// </summary>
     event EventHandler<EngineLayoutInvalidatedEventArgs> LayoutInvalidated;
+
+    // ── Editing ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Update the caret position for a session.
+    /// Called by ILokiView when the user moves the caret (click, arrow keys).
+    /// </summary>
+    void SetCaret(SessionId sessionId, Selection selection);
+
+    /// <summary>
+    /// Convert a point in document space (points) to a CaretPosition.
+    /// Returns null if the point is outside all content.
+    /// </summary>
+    CaretPosition? HitTest(int partIndex, float xPts, float yPts);
+
+    /// <summary>
+    /// Snapshot of all active caret entries. Called by ILokiView.RenderTileAsync
+    /// to obtain positions for caret and selection rendering.
+    /// </summary>
+    IReadOnlyList<CaretEntry> GetCarets();
 }

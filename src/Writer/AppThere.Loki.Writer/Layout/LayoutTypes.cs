@@ -20,7 +20,10 @@ namespace AppThere.Loki.Writer.Layout;
 /// <summary>Fixed-width content — cannot break.</summary>
 public sealed record Box(
     float        Width,
-    GlyphCluster Glyphs);
+    GlyphCluster Glyphs,
+    int          RunIndex,
+    int          RunOffset,
+    string       Text);
 
 /// <summary>
 /// Flexible space. Ideal width with stretch/shrink tolerance.

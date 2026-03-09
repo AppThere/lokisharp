@@ -11,9 +11,13 @@
 // ADR:     ADR-005
 
 using AppThere.Loki.Kernel.Geometry;
+using AppThere.Loki.LokiKit.Commands;
 using AppThere.Loki.LokiKit.Document;
+using AppThere.Loki.LokiKit.Engine;
 using AppThere.Loki.LokiKit.Events;
+using AppThere.Loki.LokiKit.Host;
 using AppThere.Loki.Skia.Rendering;
+using AppThere.Loki.Skia.Scene;
 using AppThere.Loki.Skia.Surfaces;
 using SkiaSharp;
 
@@ -25,6 +29,9 @@ public interface ILokiView : IDisposable
 
     /// <summary>The document this view is bound to.</summary>
     ILokiDocument Document { get; }
+
+    /// <summary>Number of pages in the document.</summary>
+    int PartCount { get; }
 
     // ── View state ────────────────────────────────────────────────────────────
 
@@ -70,7 +77,43 @@ public interface ILokiView : IDisposable
         PdfMetadata meta,
         CancellationToken ct = default);
 
+    // ── Editing ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Convert a point in document space (points) to a CaretPosition.
+    /// Returns null if the point is outside all content.
+    /// </summary>
+    CaretPosition? HitTest(float xPts, float yPts, int partIndex);
+
+    void SetCaret(Selection selection);
+    
+    Task<bool> ExecuteAsync(ILokiCommand command, CancellationToken ct = default);
+    
+    IReadOnlyList<CaretEntry> GetCarets();
+
+    /// <summary>
+    /// Gets the raw PaintScene for a specific part. Used for hit testing and caret rendering.
+    /// </summary>
+    AppThere.Loki.Skia.Scene.PaintScene GetPaintScene(int partIndex);
+
     // ── Layout queries ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the text length of the run at the given indices,
+    /// or 0 if the indices are out of range.
+    /// </summary>
+    int GetRunLength(int paragraphIndex, int runIndex);
+
+    /// <summary>
+    /// Returns the number of runs in the given paragraph,
+    /// or 0 if out of range.
+    /// </summary>
+    int GetRunCount(int paragraphIndex);
+
+    /// <summary>
+    /// Returns the number of paragraphs in the document.
+    /// </summary>
+    int ParagraphCount { get; }
 
     /// <summary>
     /// Size of the given part in logical points.
@@ -87,4 +130,9 @@ public interface ILokiView : IDisposable
     /// new RenderTileAsync calls.
     /// </summary>
     event EventHandler<TileInvalidatedEventArgs> TileInvalidated;
+
+    /// <summary>
+    /// Fired when the document layout has changed.
+    /// </summary>
+    event EventHandler<EngineLayoutInvalidatedEventArgs> LayoutInvalidated;
 }

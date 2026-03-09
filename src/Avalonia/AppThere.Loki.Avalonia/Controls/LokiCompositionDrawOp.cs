@@ -14,6 +14,7 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using AppThere.Loki.Avalonia.Cache;
+using AppThere.Loki.Kernel.Color;
 
 namespace AppThere.Loki.Avalonia.Controls;
 
@@ -29,12 +30,16 @@ public sealed class LokiCompositionDrawOp
     /// </summary>
     public IReadOnlyList<PositionedTile> Tiles { get; }
 
+    /// <summary>Caret positions and visibility for this frame.</summary>
+    public IReadOnlyList<CaretRenderInfo> Carets { get; }
+
     /// <summary>Total bounds of the draw area.</summary>
     public Rect Bounds { get; }
 
-    public LokiCompositionDrawOp(IReadOnlyList<PositionedTile> tiles, Rect bounds)
+    public LokiCompositionDrawOp(IReadOnlyList<PositionedTile> tiles, IReadOnlyList<CaretRenderInfo> carets, Rect bounds)
     {
         Tiles  = tiles;
+        Carets = carets;
         Bounds = bounds;
     }
 
@@ -48,10 +53,25 @@ public sealed class LokiCompositionDrawOp
 
         foreach (var tile in Tiles)
         {
-            if (tile.Bitmap is not null)
+            if (tile.IsPageGap)
+            {
+                context.FillRectangle(new SolidColorBrush(Color.FromRgb(128, 128, 128)), tile.ScreenRect);
+            }
+            else if (tile.Bitmap is not null)
+            {
                 context.DrawImage(tile.Bitmap, tile.ScreenRect);
+            }
             else
-                context.FillRectangle(_placeholder, tile.ScreenRect);
+            {
+                context.FillRectangle(new SolidColorBrush(Color.FromRgb(230, 230, 230)), tile.ScreenRect);
+            }
+        }
+
+        foreach (var caret in Carets)
+        {
+            if (!caret.IsVisible) continue;
+            var brush = new SolidColorBrush(Color.FromRgb(caret.Color.R8, caret.Color.G8, caret.Color.B8));
+            context.DrawRectangle(brush, null, caret.Rect);
         }
     }
 
@@ -65,4 +85,11 @@ public sealed class LokiCompositionDrawOp
 public sealed record PositionedTile(
     TileKey           Key,
     Rect              ScreenRect,   // in DIPs
-    WriteableBitmap?  Bitmap);      // null = not yet rendered
+    WriteableBitmap?  Bitmap,       // null = not yet rendered
+    bool              IsPageGap = false);
+
+public sealed record CaretRenderInfo(
+    Rect          Rect,
+    bool          IsLocal,
+    LokiColor     Color,
+    bool          IsVisible);

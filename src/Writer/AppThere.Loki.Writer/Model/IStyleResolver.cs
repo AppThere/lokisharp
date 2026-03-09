@@ -10,6 +10,7 @@
 // ADR:     ADR-007
 
 using AppThere.Loki.Skia.Fonts;
+using AppThere.Loki.LokiKit.Document;
 
 namespace AppThere.Loki.Writer.Model.Styles;
 

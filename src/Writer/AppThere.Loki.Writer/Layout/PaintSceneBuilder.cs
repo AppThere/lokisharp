@@ -45,6 +45,7 @@ internal sealed class PaintSceneBuilder
     {
         var para  = placed.Paragraph;
         var style = para.Style;
+        var pIndex = para.ParagraphIndex;
         float yBase = pageStyle.MarginTopPts + placed.YOffsetPts;
 
         for (var li = 0; li < para.Lines.Length; li++)
@@ -52,7 +53,7 @@ internal sealed class PaintSceneBuilder
             var line  = para.Lines[li];
             float yLine = yBase + li * style.LineHeightPts;
 
-            var nodes = BuildLineNodes(line, style, pageStyle, yLine);
+            var nodes = BuildLineNodes(pIndex, line, style, pageStyle, yLine);
             builder.AddBand(new PaintBand(yLine, style.LineHeightPts, nodes, 0L));
         }
     }
@@ -60,6 +61,7 @@ internal sealed class PaintSceneBuilder
     // ── Per-line ──────────────────────────────────────────────────────────────
 
     private static ImmutableArray<PaintNode> BuildLineNodes(
+        int             pIndex,
         BrokenLine      line,
         ParagraphStyle  style,
         PageStyle       pageStyle,
@@ -94,7 +96,8 @@ internal sealed class PaintSceneBuilder
 
                 var paint = new TextPaint(style.Color);
                 nodes.Add(new GlyphRunNode(bounds, origin,
-                    ImmutableArray.Create<GlyphRun>(glyphRun), paint));
+                    ImmutableArray.Create<GlyphRun>(glyphRun), paint,
+                    pIndex, box.Box.RunIndex, box.Box.RunOffset, box.Box.Text));
 
                 x += runWidth;
             }

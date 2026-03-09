@@ -172,7 +172,7 @@ public sealed class LokiTileCacheTests : IClassFixture<AvaloniaTestFixture>
         await using var cache = BuildCache(view: view, opts: opts);
 
         // Set viewport so tile (0,0) is Hot; tiles far away are Cool/Cold.
-        cache.UpdateViewport(Viewport512());
+        cache.UpdateViewport(Viewport512(), 1);
 
         var keys = new[]
         {

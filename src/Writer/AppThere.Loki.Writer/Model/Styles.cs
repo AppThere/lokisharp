@@ -44,6 +44,17 @@ public sealed record ParagraphStyle(
         ListLevel:          0,
         SpaceBeforePts:     0f,
         SpaceAfterPts:      0f);
+
+    public CharacterStyle AsCharStyle() => new(
+        Font:            Font,
+        FontSizePts:     FontSizePts,
+        Color:           Color,
+        BackgroundColor: null,
+        Bold:            Font.Weight >= FontWeight.Bold,
+        Italic:          Font.Slant  != FontSlant.Upright,
+        Underline:       false,
+        Strikethrough:   false,
+        Baseline:        TextBaseline.Normal);
 }
 
 public sealed record CharacterStyle(

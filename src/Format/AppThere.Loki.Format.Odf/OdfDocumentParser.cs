@@ -17,6 +17,7 @@ using AppThere.Loki.Kernel.Logging;
 using AppThere.Loki.Writer.Model;
 using AppThere.Loki.Writer.Model.Inlines;
 using AppThere.Loki.Writer.Model.Styles;
+using AppThere.Loki.LokiKit.Document;
 
 namespace AppThere.Loki.Format.Odf;
 
@@ -239,6 +240,19 @@ internal static class OdfDocumentParser
                             CollectInlineElement(ce, paraStyle, spanStyle, resolver, inlines);
                     }
                 }
+                else if (el.Name.Namespace == NsText)
+                {
+                    var kind = OdfFieldMap.Resolve(el.Name.LocalName);
+                    if (kind != FieldKind.Unknown || !string.IsNullOrEmpty(el.Value))
+                    {
+                        var staticText = el.Value;
+                        inlines.Add(new FieldNode(kind, staticText, charStyle, null));
+                    }
+                    else
+                    {
+                        CollectInlineElement(el, paraStyle, charStyle, resolver, inlines);
+                    }
+                }
                 else
                     CollectInlineElement(el, paraStyle, charStyle, resolver, inlines);
             }
@@ -264,6 +278,15 @@ internal static class OdfDocumentParser
                     inlines.Add(new RunNode(t.Value, spanStyle, spanStyleId));
                 else if (child is XElement ce)
                     CollectInlineElement(ce, paraStyle, spanStyle, resolver, inlines);
+            }
+        }
+        else if (el.Name.Namespace == NsText)
+        {
+            var kind = OdfFieldMap.Resolve(el.Name.LocalName);
+            if (kind != FieldKind.Unknown || !string.IsNullOrEmpty(el.Value))
+            {
+                var staticText = el.Value;
+                inlines.Add(new FieldNode(kind, staticText, charStyle, null));
             }
         }
     }

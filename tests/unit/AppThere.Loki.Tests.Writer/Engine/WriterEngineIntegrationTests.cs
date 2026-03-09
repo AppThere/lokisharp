@@ -29,7 +29,7 @@ public sealed class WriterEngineIntegrationTests
         var odfImporter  = new OdfImporter();
         var layoutEngine = new LayoutEngine(fontManager, NullLokiLogger.Instance);
         return new WriterEngine(fontManager, NullLokiLogger.Instance,
-                                odfImporter, layoutEngine);
+                                odfImporter, layoutEngine, LokiHostOptions.Default);
     }
 
     private static string CorpusPath(string file) =>

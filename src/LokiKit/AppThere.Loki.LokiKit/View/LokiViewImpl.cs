@@ -13,8 +13,11 @@
 
 using AppThere.Loki.Kernel.Geometry;
 using AppThere.Loki.Kernel.Logging;
+using AppThere.Loki.LokiKit.Commands;
 using AppThere.Loki.LokiKit.Document;
+using AppThere.Loki.LokiKit.Engine;
 using AppThere.Loki.LokiKit.Events;
+using AppThere.Loki.LokiKit.Host;
 using AppThere.Loki.Skia.Rendering;
 using AppThere.Loki.Skia.Scene;
 using AppThere.Loki.Skia.Surfaces;
@@ -26,21 +29,67 @@ public sealed class LokiViewImpl : ILokiView
 {
     private readonly ITileRenderer _renderer;
     private readonly ILokiLogger   _logger;
+    private readonly LokiHostOptions _options;
     private int    _activePart   = 0;
     private float  _zoom         = 1.0f;
     private PointF _scrollOffset = new(0f, 0f);
 
-    public ILokiDocument Document { get; }
+    private EventHandler<EngineLayoutInvalidatedEventArgs>? _pendingLayoutInvalidated;
+
+    public ILokiDocument Document { get; private set; } = null!;
+
+    public int PartCount => Document is LokiDocumentImpl impl ? impl.Engine.PartCount : 0;
 
     public event EventHandler<TileInvalidatedEventArgs>? TileInvalidated;
 
-    public LokiViewImpl(ILokiDocument document, ITileRenderer renderer, ILokiLogger logger)
+    public event EventHandler<EngineLayoutInvalidatedEventArgs>? LayoutInvalidated
     {
-        Document   = document;
+        add
+        {
+            _pendingLayoutInvalidated += value;
+            if (Document is LokiDocumentImpl impl) impl.Engine.LayoutInvalidated += value;
+        }
+        remove
+        {
+            _pendingLayoutInvalidated -= value;
+            if (Document is LokiDocumentImpl impl) impl.Engine.LayoutInvalidated -= value;
+        }
+    }
+
+    public LokiViewImpl(ILokiDocument document, ITileRenderer renderer, ILokiLogger logger, LokiHostOptions options)
+    {
         _renderer  = renderer;
         _logger    = logger;
+        _options   = options;
 
-        Document.Changed += OnDocumentChanged;
+        SetDocument(document);
+    }
+
+    private void SetDocument(ILokiDocument document)
+    {
+        if (Document == document) return;
+
+        // Unsubscribe from old
+        if (Document != null)
+        {
+            Document.Changed -= OnDocumentChanged;
+            if (Document is LokiDocumentImpl oldImpl && _pendingLayoutInvalidated != null)
+            {
+                oldImpl.Engine.LayoutInvalidated -= _pendingLayoutInvalidated;
+            }
+        }
+
+        Document = document;
+
+        // Subscribe to new
+        if (Document != null)
+        {
+            Document.Changed += OnDocumentChanged;
+            if (Document is LokiDocumentImpl newImpl && _pendingLayoutInvalidated != null)
+            {
+                newImpl.Engine.LayoutInvalidated += _pendingLayoutInvalidated;
+            }
+        }
     }
 
     // ── View state ────────────────────────────────────────────────────────────
@@ -76,7 +125,7 @@ public sealed class LokiViewImpl : ILokiView
 
     public Task<SKBitmap> RenderTileAsync(TileRequest request, CancellationToken ct = default)
     {
-        var scene = GetEngineScene(_activePart);
+        var scene = GetPaintScene(request.PartIndex);
         return _renderer.RenderTileAsync(scene, request, ct);
     }
 
@@ -89,17 +138,102 @@ public sealed class LokiViewImpl : ILokiView
     {
         var scenes = new PaintScene[Document.PartCount];
         for (var i = 0; i < Document.PartCount; i++)
-            scenes[i] = GetEngineScene(i);
+            scenes[i] = GetPaintScene(i);
         return _renderer.RenderToPdfAsync(scenes, output, meta, ct);
     }
 
     // ── Layout queries ────────────────────────────────────────────────────────
 
+    public int ParagraphCount
+    {
+        get
+        {
+            if (Document is LokiDocumentImpl impl)
+            {
+                try
+                {
+                    dynamic engine = impl.Engine;
+                    return engine.GetSnapshot().Body.Count;
+                }
+                catch { }
+            }
+            return 0;
+        }
+    }
+
+    public int GetRunCount(int paragraphIndex)
+    {
+        if (Document is LokiDocumentImpl impl)
+        {
+            try
+            {
+                dynamic engine = impl.Engine;
+                var snapshot = engine.GetSnapshot();
+                if (paragraphIndex >= 0 && paragraphIndex < snapshot.Body.Count)
+                {
+                    var para = snapshot.Body[paragraphIndex];
+                    return para.Inlines.Count;
+                }
+            }
+            catch { }
+        }
+        return 0;
+    }
+
+    public int GetRunLength(int paragraphIndex, int runIndex)
+    {
+        if (Document is LokiDocumentImpl impl)
+        {
+            try
+            {
+                dynamic engine = impl.Engine;
+                var snapshot = engine.GetSnapshot();
+                if (paragraphIndex >= 0 && paragraphIndex < snapshot.Body.Count)
+                {
+                    var para = snapshot.Body[paragraphIndex];
+                    if (runIndex >= 0 && runIndex < para.Inlines.Count)
+                    {
+                        var run = para.Inlines[runIndex];
+                        return run.Text?.Length ?? 0;
+                    }
+                }
+            }
+            catch { }
+        }
+        return 0;
+    }
+
     public SizeF GetPartSize(int partIndex) => Document.GetPart(partIndex).SizeInPoints;
+
+    // ── Editing ───────────────────────────────────────────────────────────────
+
+    public CaretPosition? HitTest(float xPts, float yPts, int partIndex)
+    {
+        if (Document is not LokiDocumentImpl impl) return null;
+        return impl.Engine.HitTest(partIndex, xPts, yPts);
+    }
+
+    public void SetCaret(Selection selection)
+    {
+        if (Document is not LokiDocumentImpl impl) return;
+        impl.Engine.SetCaret(_options.LocalSessionId, selection);
+    }
+
+    public Task<bool> ExecuteAsync(ILokiCommand command, CancellationToken ct = default)
+    {
+        if (Document is not LokiDocumentImpl impl) return Task.FromResult(false);
+        return impl.Engine.ExecuteAsync(command, ct);
+    }
+
+    public IReadOnlyList<CaretEntry> GetCarets()
+    {
+        if (Document is not LokiDocumentImpl impl) return Array.Empty<CaretEntry>();
+        return impl.Engine.GetCarets();
+    }
 
     // ── Internal helpers ──────────────────────────────────────────────────────
 
-    private PaintScene GetEngineScene(int partIndex)
+    public AppThere.Loki.Skia.Scene.PaintScene GetPaintScene(int partIndex)
     {
         if (Document is not LokiDocumentImpl impl)
             throw new InvalidOperationException("Document is not a LokiDocumentImpl.");

@@ -98,6 +98,17 @@ public sealed class StubEngine : ILokiEngine
     public event EventHandler<EngineLayoutInvalidatedEventArgs>? LayoutInvalidated;
 #pragma warning restore CS0067
 
+    // ── Editing ───────────────────────────────────────────────────────────────
+
+    public void SetCaret(SessionId sessionId, Selection selection)
+    {
+        // Stub has no caret registry — no-op.
+    }
+
+    public CaretPosition? HitTest(int partIndex, float xPts, float yPts) => CaretPosition.DocumentStart;
+
+    public IReadOnlyList<CaretEntry> GetCarets() => Array.Empty<CaretEntry>();
+
     // ── Dispose ───────────────────────────────────────────────────────────────
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;

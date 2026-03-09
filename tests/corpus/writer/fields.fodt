@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<office:document
+  xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+  xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+  office:version="1.3"
+  office:mimetype="application/vnd.oasis.opendocument.text">
+  <office:body>
+    <office:text>
+      <text:p text:style-name="Standard">
+        <text:title>My Document</text:title>
+      </text:p>
+      <text:p text:style-name="Standard">
+        Page <text:page-number>1</text:page-number>
+      </text:p>
+      <text:p text:style-name="Standard">Body paragraph.</text:p>
+    </office:text>
+  </office:body>
+</office:document>

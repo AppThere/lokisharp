@@ -29,6 +29,8 @@ internal sealed class InlineMeasurer
     private readonly ILokiLogger     _logger;
     private readonly LokiTextShaper  _shaper;
 
+    private static readonly HashSet<string> _warnedFamilies = new();
+
     public InlineMeasurer(IFontManager fontManager, ILokiLogger logger)
     {
         _fontManager = fontManager ?? throw new ArgumentNullException(nameof(fontManager));
@@ -47,12 +49,17 @@ internal sealed class InlineMeasurer
     {
         var items = new List<LayoutItem>();
 
-        foreach (var inline in para.Inlines)
+        for (int i = 0; i < para.Inlines.Count; i++)
         {
+            var inline = para.Inlines[i];
             switch (inline)
             {
                 case RunNode run:
-                    ProcessRun(run, items);
+                    ProcessRun(run, i, items);
+                    break;
+
+                case FieldNode fieldNode:
+                    ProcessField(fieldNode, i, items);
                     break;
 
                 case HardLineBreakNode:
@@ -80,7 +87,7 @@ internal sealed class InlineMeasurer
 
     // ── Run processing ────────────────────────────────────────────────────────
 
-    private void ProcessRun(RunNode run, List<LayoutItem> items)
+    private void ProcessRun(RunNode run, int runIndex, List<LayoutItem> items)
     {
         // Build a FontDescriptor that reflects the run's resolved size
         var fontDesc = run.Style.Font with { SizeInPoints = run.Style.FontSizePts };
@@ -91,58 +98,82 @@ internal sealed class InlineMeasurer
             ? spaceRuns[0].TotalAdvance
             : run.Style.FontSizePts * 0.25f;   // fallback: ¼ em
 
-        ProcessText(run.Text, fontDesc, spaceWidth, items);
+        ProcessText(run.Text, runIndex, fontDesc, spaceWidth, items);
+    }
+
+    private void ProcessField(FieldNode fieldNode, int runIndex, List<LayoutItem> items)
+    {
+        var fontDesc = fieldNode.Style.Font with { SizeInPoints = fieldNode.Style.FontSizePts };
+        var spaceRuns = ShapeQuiet(" ", fontDesc);
+        var spaceWidth = spaceRuns.Count > 0
+            ? spaceRuns[0].TotalAdvance
+            : fieldNode.Style.FontSizePts * 0.25f;
+
+        // Phase 6: replace StaticText with _fieldEvaluator.Evaluate(...)
+        ProcessText(fieldNode.StaticText, runIndex, fontDesc, spaceWidth, items);
     }
 
     // ── Text tokenisation ─────────────────────────────────────────────────────
 
     private void ProcessText(
         string           text,
+        int              runIndex,
         FontDescriptor   fontDesc,
         float            spaceWidth,
         List<LayoutItem> items)
     {
         var wordBuffer = new StringBuilder();
+        int currentOffset = 0;
 
-        foreach (var ch in text)
+        for (int i = 0; i < text.Length; i++)
         {
+            char ch = text[i];
             if (ch == ' ')
             {
                 if (wordBuffer.Length > 0)
                 {
-                    EmitWordTokens(wordBuffer.ToString(), fontDesc, items);
+                    EmitWordTokens(wordBuffer.ToString(), runIndex, currentOffset - wordBuffer.Length, fontDesc, items);
                     wordBuffer.Clear();
                 }
                 // Inter-word glue + neutral break opportunity
                 items.Add(new GlueItem(new Glue(spaceWidth, spaceWidth * 0.5f, spaceWidth * 0.3f)));
                 items.Add(new PenaltyItem(new Penalty(0f, false)));
+                currentOffset++; // space char
             }
             else
             {
                 wordBuffer.Append(ch);
+                currentOffset++;
             }
         }
 
         if (wordBuffer.Length > 0)
-            EmitWordTokens(wordBuffer.ToString(), fontDesc, items);
+            EmitWordTokens(wordBuffer.ToString(), runIndex, currentOffset - wordBuffer.Length, fontDesc, items);
     }
 
     // ── Soft-hyphen splitting ─────────────────────────────────────────────────
 
     private void EmitWordTokens(
         string           word,
+        int              runIndex,
+        int              runOffset,
         FontDescriptor   fontDesc,
         List<LayoutItem> items)
     {
         // U+00AD SOFT HYPHEN marks a discouraged-but-allowed break opportunity
         var segments = word.Split('\u00AD');
+        int segmentOffset = 0;
         for (var i = 0; i < segments.Length; i++)
         {
             if (segments[i].Length > 0)
-                EmitBox(segments[i], fontDesc, items);
+                EmitBox(segments[i], runIndex, runOffset + segmentOffset, fontDesc, items);
 
+            segmentOffset += segments[i].Length;
             if (i < segments.Length - 1)
+            {
                 items.Add(new PenaltyItem(new Penalty(50f, true)));
+                segmentOffset++; // hyphen char
+            }
         }
     }
 
@@ -150,6 +181,8 @@ internal sealed class InlineMeasurer
 
     private void EmitBox(
         string           text,
+        int              runIndex,
+        int              runOffset,
         FontDescriptor   fontDesc,
         List<LayoutItem> items)
     {
@@ -174,7 +207,7 @@ internal sealed class InlineMeasurer
             runs[0].Typeface,       // renderer uses first run's typeface
             fontDesc.SizeInPoints);
 
-        items.Add(new BoxItem(new Box(totalWidth, cluster)));
+        items.Add(new BoxItem(new Box(totalWidth, cluster, runIndex, runOffset, text)));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -188,7 +221,10 @@ internal sealed class InlineMeasurer
         }
         catch (Exception ex)
         {
-            _logger.Warn("InlineMeasurer: shaping failed for '{0}': {1}", text, ex.Message);
+            if (_warnedFamilies.Add(fontDesc.FamilyName))
+            {
+                _logger.Warn("InlineMeasurer: shaping failed for family '{0}': {1} (Further warnings suppressed.)", fontDesc.FamilyName, ex.Message);
+            }
             return ImmutableArray<GlyphRun>.Empty;
         }
     }

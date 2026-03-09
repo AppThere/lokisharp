@@ -1,13 +1,15 @@
 // LAYER:   AppThere.Loki.Writer — Document Model
-// KIND:    Classes (style registry and raw style definitions)
+// KIND:    Classes (style registry)
 // PURPOSE: Holds the raw (pre-cascade) style definitions from the source
 //          document. Used by StyleResolver at import time only.
 //          The layout engine never reads StyleRegistry — it reads only
 //          the computed ParagraphStyle/CharacterStyle on each node.
-// DEPENDS: —
+// DEPENDS: StyleDefs (LokiKit)
 // USED BY: OdfImporter (populates), StyleResolver (reads), LokiDocument
 // PHASE:   3
 // ADR:     ADR-007
+
+using AppThere.Loki.LokiKit.Document;
 
 namespace AppThere.Loki.Writer.Model.Styles;
 
@@ -40,52 +42,3 @@ public sealed class StyleRegistry
         null, null);
 }
 
-/// <summary>
-/// Raw paragraph style definition with optional parent for inheritance.
-/// All properties are nullable — null means "inherit from parent".
-/// </summary>
-public sealed class ParagraphStyleDef
-{
-    public string   Id       { get; init; } = "";
-    public string?  ParentId { get; init; }
-    public bool     IsAutomatic { get; init; }  // automatic style (per-paragraph override)
-
-    // Raw property values — all nullable (null = inherit)
-    public string?  FontFamily          { get; init; }
-    public float?   FontSizePts         { get; init; }
-    public string?  Color               { get; init; }  // hex string e.g. "000000"
-    public string?  Alignment           { get; init; }  // "left","right","center","justify"
-    public float?   MarginTopPts        { get; init; }
-    public float?   MarginBottomPts     { get; init; }
-    public float?   MarginStartPts      { get; init; }
-    public float?   MarginEndPts        { get; init; }
-    public float?   LineHeightPts       { get; init; }
-    public float?   FirstLineIndentPts  { get; init; }
-    public float?   HangingIndentPts    { get; init; }
-    public string?  ListStyleId         { get; init; }
-    public int?     ListLevel           { get; init; }
-    public float?   SpaceBeforePts      { get; init; }
-    public float?   SpaceAfterPts       { get; init; }
-    public bool?    Bold                { get; init; }
-    public bool?    Italic              { get; init; }
-}
-
-/// <summary>
-/// Raw character style definition with optional parent for inheritance.
-/// </summary>
-public sealed class CharacterStyleDef
-{
-    public string   Id       { get; init; } = "";
-    public string?  ParentId { get; init; }
-    public bool     IsAutomatic { get; init; }
-
-    public string?  FontFamily      { get; init; }
-    public float?   FontSizePts     { get; init; }
-    public string?  Color           { get; init; }
-    public string?  BackgroundColor { get; init; }
-    public bool?    Bold            { get; init; }
-    public bool?    Italic          { get; init; }
-    public bool?    Underline       { get; init; }
-    public bool?    Strikethrough   { get; init; }
-    public string?  Baseline        { get; init; }  // "normal","super","sub"
-}

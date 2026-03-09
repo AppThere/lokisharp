@@ -33,7 +33,7 @@ public sealed class KnuthPlassBreakerTests
             var cluster = new GlyphCluster(
                 Array.Empty<ushort>(), Array.Empty<float>(),
                 Substitute.For<ILokiTypeface>(), 12f);
-            items.Add(new BoxItem(new Box(wordWidths[i], cluster)));
+            items.Add(new BoxItem(new Box(wordWidths[i], cluster, 0, 0, "word")));
 
             if (i < wordWidths.Length - 1)
             {
@@ -58,7 +58,7 @@ public sealed class KnuthPlassBreakerTests
         {
             var c = new GlyphCluster(Array.Empty<ushort>(), Array.Empty<float>(),
                 Substitute.For<ILokiTypeface>(), 12f);
-            items.Add(new BoxItem(new Box(w, c)));
+            items.Add(new BoxItem(new Box(w, c, 0, 0, "word")));
         }
 
         foreach (var w in beforeBreak) { AddWord(w); items.Add(new GlueItem(new Glue(6f, 3f, 2f))); }

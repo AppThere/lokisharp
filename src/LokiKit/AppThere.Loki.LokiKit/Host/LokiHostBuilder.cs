@@ -30,6 +30,16 @@ public sealed class LokiHostBuilder
     private bool _rendererRegistered;
     private bool _fontsRegistered;
     private bool _loggerRegistered;
+    private LokiHostOptions _options = LokiHostOptions.Default;
+
+    /// <summary>
+    /// Set host options. Defaults to LokiHostOptions.Default.
+    /// </summary>
+    public LokiHostBuilder WithOptions(LokiHostOptions options)
+    {
+        _options = options;
+        return this;
+    }
 
     /// <summary>
     /// Register CPU-only (headless) render surfaces. Required for lokiprint
@@ -113,6 +123,7 @@ public sealed class LokiHostBuilder
                 "No logger registered. Call UseConsoleLogger() or UseAvaloniaLogger().");
 
         _services.AddSingleton<ILokiHost, LokiHostImpl>();
+        _services.AddSingleton(_options);
 
         var provider = _services.BuildServiceProvider(
             new ServiceProviderOptions { ValidateOnBuild = true });

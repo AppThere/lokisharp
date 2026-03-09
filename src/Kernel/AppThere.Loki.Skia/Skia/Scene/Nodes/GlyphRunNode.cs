@@ -17,4 +17,8 @@ public sealed record GlyphRunNode(
     RectF                    Bounds,
     PointF                   Origin,   // baseline origin in logical points
     ImmutableArray<GlyphRun> Runs,
-    TextPaint                Paint) : PaintNode(Bounds);
+    TextPaint                Paint,
+    int                      ParagraphIndex = 0,
+    int                      RunIndex       = 0,
+    int                      RunOffset      = 0,
+    string                   Text           = "") : PaintNode(Bounds);

@@ -18,6 +18,7 @@ using AppThere.Loki.LokiKit.Host;
 using AppThere.Loki.Writer.Engine;
 using AppThere.Loki.Writer.Layout;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AppThere.Loki.Writer;
 
@@ -34,6 +35,9 @@ public static class LokiHostBuilderExtensions
     {
         builder.ConfigureServices(services =>
         {
+            // Register options singleton if not already present
+            services.TryAddSingleton(LokiHostOptions.Default);
+
             // Remove the StubEngine registration added by UseSkiaRenderer()
             var existing = services.FirstOrDefault(
                 d => d.ServiceType == typeof(ILokiEngine));

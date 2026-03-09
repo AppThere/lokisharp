@@ -25,7 +25,7 @@ public interface ILokiTileCache : IAsyncDisposable
     /// pre-render scheduling for Warm zone misses, and cancellation
     /// of in-flight renders for newly Cold tiles.
     /// </summary>
-    void UpdateViewport(ViewportGeometry viewport);
+    void UpdateViewport(ViewportGeometry viewport, int pageCount);
 
     /// <summary>
     /// Return the cached bitmap for the given tile key, or null if not
@@ -60,4 +60,7 @@ public interface ILokiTileCache : IAsyncDisposable
 
     /// <summary>Current total memory used by completed tiles in bytes.</summary>
     long CachedMemoryBytes { get; }
+
+    /// <summary>Returns a snapshot of all keys currently in the completed cache.</summary>
+    IReadOnlyCollection<TileKey> CachedKeys { get; }
 }

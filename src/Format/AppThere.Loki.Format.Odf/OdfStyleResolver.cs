@@ -15,6 +15,7 @@ using AppThere.Loki.Kernel.Color;
 using AppThere.Loki.Kernel.Fonts;
 using AppThere.Loki.Kernel.Geometry;
 using AppThere.Loki.Writer.Model.Styles;
+using AppThere.Loki.LokiKit.Document;
 
 namespace AppThere.Loki.Format.Odf;
 

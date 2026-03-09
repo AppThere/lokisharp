@@ -21,6 +21,7 @@ using AppThere.Loki.Avalonia.Controls;
 using AppThere.Loki.Kernel.Logging;
 using AppThere.Loki.LokiKit.Events;
 using AppThere.Loki.LokiKit.View;
+using AppThere.Loki.LokiKit.Host;
 using AppThere.Loki.Skia.Rendering;
 using SkiaSharp;
 using SkiaTileKey = AppThere.Loki.Skia.Rendering.TileKey;
@@ -31,6 +32,7 @@ public sealed class LokiTileCache : ILokiTileCache
 {
     private readonly ILokiView         _view;
     private readonly TileCacheOptions  _options;
+    private readonly LokiHostOptions   _hostOptions;
     private readonly ILokiLogger       _logger;
     private readonly Action<Action>    _uiDispatch;
     private readonly object            _lock = new();
@@ -39,6 +41,7 @@ public sealed class LokiTileCache : ILokiTileCache
     private readonly Dictionary<TileKey, (Task Task, CancellationTokenSource Cts)> _inFlight  = new();
 
     private ViewportGeometry?  _viewport;
+    private int                _pageCount;
     private long               _totalBytes;
     private readonly CancellationTokenSource _maintenanceCts = new();
     private readonly Task                    _maintenanceTask;
@@ -46,44 +49,65 @@ public sealed class LokiTileCache : ILokiTileCache
     public event EventHandler<TileKey>? TileReady;
     public int  CachedTileCount   { get { lock (_lock) return _completed.Count; } }
     public long CachedMemoryBytes { get { lock (_lock) return _totalBytes; } }
+    public IReadOnlyCollection<TileKey> CachedKeys { get { lock (_lock) return _completed.Keys.ToList(); } }
 
-    public LokiTileCache(ILokiView view, TileCacheOptions options, ILokiLogger logger)
-        : this(view, options, logger, uiDispatch: null) { }
+    public LokiTileCache(ILokiView view, TileCacheOptions options, ILokiLogger logger, LokiHostOptions? hostOptions = null)
+        : this(view, options, logger, uiDispatch: null, hostOptions) { }
 
-    // Internal constructor: allows tests to inject a synchronous dispatcher
-    // so TileReady fires immediately on the thread-pool thread, avoiding the
-    // need for a running Avalonia UI thread in unit tests.
     internal LokiTileCache(
         ILokiView view,
         TileCacheOptions options,
         ILokiLogger logger,
-        Action<Action>? uiDispatch)
+        Action<Action>? uiDispatch,
+        LokiHostOptions? hostOptions = null)
     {
         _view        = view;
         _options     = options;
         _logger      = logger;
         _uiDispatch  = uiDispatch ?? (action => Dispatcher.UIThread.Post(action));
+        _hostOptions = hostOptions ?? LokiHostOptions.Default;
         _maintenanceTask = RunMaintenanceAsync(_maintenanceCts.Token);
     }
 
     // ── ILokiTileCache ────────────────────────────────────────────────────────
 
-    public void UpdateViewport(ViewportGeometry vp)
+    public void UpdateViewport(ViewportGeometry vp, int pageCount)
     {
-        // Query doc size outside the lock — external call, must not block.
-        float docW = _view.GetPartSize(vp.PartIndex).Width;
-        float docH = _view.GetPartSize(vp.PartIndex).Height;
-        var warmKeys = EnumerateWarmTiles(vp, docW, docH);
+        float docW = _view.GetPartSize(0).Width;
+        float docH = _view.GetPartSize(0).Height;
+        float gapPts = _hostOptions.PageGapPts;
+        
+        var warmKeys = new List<TileKey>();
+        for (int p = 0; p < pageCount; p++)
+        {
+            float pageTopPts = p * (docH + gapPts);
+            float pageBottomPts = pageTopPts + docH;
+
+            float vpTop = vp.ScrollOffsetYPts;
+            float vpBottom = vpTop + vp.ViewportHeightPts;
+            float tilePts = vp.TileSizePx / vp.Zoom;
+            float vpTilesY = Math.Max(1f, vp.ViewportHeightPts / tilePts);
+            float expansion = _options.KeepRadiusMultiplier * vpTilesY * tilePts;
+
+            if (pageBottomPts < vpTop - expansion || pageTopPts > vpBottom + expansion)
+                continue;
+
+            var pageVp = vp with { 
+                PartIndex = p, 
+                ScrollOffsetYPts = Math.Max(0f, vp.ScrollOffsetYPts - pageTopPts) 
+            };
+            warmKeys.AddRange(EnumerateWarmTiles(pageVp, docW, docH));
+        }
 
         List<TileKey>? toSchedule = null;
         lock (_lock)
         {
             _viewport = vp;
+            _pageCount = pageCount;
             foreach (var entry in _completed.Values)
-                entry.Zone = TileGridMath.ZoneForTile(entry.Key, vp,
-                    _options.KeepRadiusMultiplier, _options.RetainRadiusMultiplier);
+                entry.Zone = GetZoneUnderLock(entry.Key, vp, docH);
 
-            EvictColdTilesUnderLock(vp);
+            EvictColdTilesUnderLock(vp, docH);
 
             foreach (var key in warmKeys)
             {
@@ -120,11 +144,13 @@ public sealed class LokiTileCache : ILokiTileCache
                 ? new List<TileKey>(_completed.Keys)
                 : args.InvalidatedKeys.Select(MapSkiaKey);
 
+            float docH = _view.GetPartSize(0).Height;
+
             foreach (var key in targets)
             {
                 TileZone zone = _viewport is null ? TileZone.Cold
-                    : TileGridMath.ZoneForTile(key, _viewport,
-                        _options.KeepRadiusMultiplier, _options.RetainRadiusMultiplier);
+                    : GetZoneUnderLock(key, _viewport, docH);
+                    
                 if (_completed.Remove(key, out var entry))
                 {
                     _totalBytes -= entry.ByteCost;
@@ -168,12 +194,19 @@ public sealed class LokiTileCache : ILokiTileCache
             _totalBytes = 0;
             foreach (var (_, f) in _inFlight.Values) f.Cancel();
             _inFlight.Clear();
-            if (_viewport is not null)
+            if (_viewport is not null && _pageCount > 0)
             {
-                var size = _view.GetPartSize(_viewport.PartIndex);
-                hotKeys = TileGridMath
-                    .TilesForViewport(_viewport, size.Width, size.Height)
-                    .ToList();
+                var size = _view.GetPartSize(0);
+                hotKeys = new List<TileKey>();
+                for (int p = 0; p < _pageCount; p++)
+                {
+                    float pageTop = p * (size.Height + _hostOptions.PageGapPts);
+                    var pageVp = _viewport with { 
+                        PartIndex = p, 
+                        ScrollOffsetYPts = Math.Max(0f, _viewport.ScrollOffsetYPts - pageTop) 
+                    };
+                    hotKeys.AddRange(TileGridMath.TilesForViewport(pageVp, size.Width, size.Height));
+                }
             }
         }
         if (hotKeys is not null)
@@ -181,6 +214,13 @@ public sealed class LokiTileCache : ILokiTileCache
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    private TileZone GetZoneUnderLock(TileKey key, ViewportGeometry vp, float docH)
+    {
+        float pageTopPts = key.PartIndex * (docH + _hostOptions.PageGapPts);
+        var pageVp = vp with { ScrollOffsetYPts = Math.Max(0f, vp.ScrollOffsetYPts - pageTopPts) };
+        return TileGridMath.ZoneForTile(key, pageVp, _options.KeepRadiusMultiplier, _options.RetainRadiusMultiplier);
+    }
 
     private void ScheduleRender(TileKey key)
     {
@@ -214,8 +254,7 @@ public sealed class LokiTileCache : ILokiTileCache
                 EvictUntilBudgetUnderLock(cost);
                 var entry = new CachedTile(key, wb, cost);
                 if (_viewport is not null)
-                    entry.Zone = TileGridMath.ZoneForTile(key, _viewport,
-                        _options.KeepRadiusMultiplier, _options.RetainRadiusMultiplier);
+                    entry.Zone = GetZoneUnderLock(key, _viewport, _view.GetPartSize(0).Height);
                 _completed[key] = entry;
                 _totalBytes += cost;
             }
@@ -249,7 +288,7 @@ public sealed class LokiTileCache : ILokiTileCache
         return wb;
     }
 
-    private void EvictColdTilesUnderLock(ViewportGeometry vp)
+    private void EvictColdTilesUnderLock(ViewportGeometry vp, float docH)
     {
         var cold = _completed.Values.Where(e => e.Zone == TileZone.Cold).ToList();
         foreach (var entry in cold)
@@ -259,8 +298,7 @@ public sealed class LokiTileCache : ILokiTileCache
             entry.Bitmap.Dispose();
         }
         var coldFlight = _inFlight.Keys
-            .Where(k => TileGridMath.ZoneForTile(k, vp,
-                _options.KeepRadiusMultiplier, _options.RetainRadiusMultiplier) == TileZone.Cold)
+            .Where(k => GetZoneUnderLock(k, vp, docH) == TileZone.Cold)
             .ToList();
         foreach (var k in coldFlight)
         {
@@ -313,11 +351,11 @@ public sealed class LokiTileCache : ILokiTileCache
 
             lock (_lock)
             {
-                if (_viewport is null) continue;
+                if (_viewport is null || _pageCount == 0) continue;
+                float docH = _view.GetPartSize(0).Height;
                 foreach (var e in _completed.Values)
-                    e.Zone = TileGridMath.ZoneForTile(e.Key, _viewport,
-                        _options.KeepRadiusMultiplier, _options.RetainRadiusMultiplier);
-                EvictColdTilesUnderLock(_viewport);
+                    e.Zone = GetZoneUnderLock(e.Key, _viewport, docH);
+                EvictColdTilesUnderLock(_viewport, docH);
             }
         }
     }

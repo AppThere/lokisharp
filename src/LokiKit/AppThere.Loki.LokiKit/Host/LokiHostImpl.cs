@@ -89,7 +89,8 @@ public sealed class LokiHostImpl : ILokiHost
     public ILokiView CreateView(ILokiDocument document)
     {
         var renderer = _rootProvider.GetRequiredService<ITileRenderer>();
-        return new LokiViewImpl(document, renderer, _logger);
+        var options  = _rootProvider.GetRequiredService<LokiHostOptions>();
+        return new LokiViewImpl(document, renderer, _logger, options);
     }
 
     // ── DisposeAsync ──────────────────────────────────────────────────────────
