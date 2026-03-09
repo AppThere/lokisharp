@@ -11,7 +11,8 @@
 // ADR:     ADR-011
 
 using Avalonia.Media.Imaging;
-using AppThere.Loki.LokiKit.View;
+using AppThere.Loki.Avalonia.Controls;
+using AppThere.Loki.LokiKit.Events;
 
 namespace AppThere.Loki.Avalonia.Cache;
 

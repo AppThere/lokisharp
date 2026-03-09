@@ -1,57 +1,60 @@
 // LAYER:   AppThere.Loki.Avalonia — Controls
-// KIND:    Class (Avalonia ICustomDrawOperation implementation)
-// PURPOSE: Called by Avalonia on the render thread in response to
-//          InvalidateVisual(). Holds an immutable snapshot of positioned
-//          tile bitmaps. Iterates the snapshot and draws each tile via
-//          DrawingContext.DrawImage. Does NO tile rendering itself.
-//          Created fresh on each InvalidateVisual() call with the
-//          current tile snapshot — old instances are disposed after the
-//          frame completes.
-// DEPENDS: ILokiTileCache, TileKey, TileCacheOptions
-// USED BY: LokiTileControl.OnRender
+// KIND:    Class (Avalonia draw helper)
+// PURPOSE: Called by LokiTileControl.Render(). Holds an immutable snapshot of
+//          positioned tile bitmaps. Draws white background, then each tile bitmap
+//          at its screen rect via DrawingContext.DrawImage. Does NO tile rendering.
+//          Created fresh on each Render() call — old instances are disposed after
+//          the frame completes.
+// DEPENDS: TileKey
+// USED BY: LokiTileControl.Render
 // PHASE:   4
 // ADR:     ADR-010, ADR-011
 
+using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using Avalonia.Platform;
-using Avalonia.Rendering.Composition;
+using AppThere.Loki.Avalonia.Cache;
 
 namespace AppThere.Loki.Avalonia.Controls;
 
-public sealed class LokiCompositionDrawOp : ICustomDrawOperation
+public sealed class LokiCompositionDrawOp
 {
+    private static readonly IBrush _placeholder =
+        new SolidColorBrush(Color.FromRgb(220, 220, 220));
+
     /// <summary>
     /// Immutable snapshot of tiles to draw this frame.
     /// Each entry is (screen rect in DIPs, bitmap).
-    /// Built by LokiTileControl before calling InvalidateVisual().
+    /// Built by LokiTileControl before calling Render().
     /// </summary>
     public IReadOnlyList<PositionedTile> Tiles { get; }
 
-    /// <summary>Total bounds of the draw operation (required by Avalonia).</summary>
-    public Avalonia.Rect Bounds { get; }
+    /// <summary>Total bounds of the draw area.</summary>
+    public Rect Bounds { get; }
 
-    public LokiCompositionDrawOp(
-        IReadOnlyList<PositionedTile> tiles,
-        Avalonia.Rect bounds)
+    public LokiCompositionDrawOp(IReadOnlyList<PositionedTile> tiles, Rect bounds)
     {
         Tiles  = tiles;
         Bounds = bounds;
     }
 
     /// <summary>
-    /// Called by Avalonia on the render thread.
     /// Draws white background, then each tile bitmap at its screen rect.
+    /// Called by LokiTileControl on the UI thread during Render().
     /// </summary>
-    public void Render(ImmediateDrawingContext context)
+    public void Render(DrawingContext context)
     {
-        // Implementation: fill background white, then DrawImage per tile.
-        // Placeholder tiles (null Bitmap) draw a light-grey rectangle.
-        throw new NotImplementedException("Implemented by Claude Code");
+        context.FillRectangle(Brushes.White, Bounds);
+
+        foreach (var tile in Tiles)
+        {
+            if (tile.Bitmap is not null)
+                context.DrawImage(tile.Bitmap, tile.ScreenRect);
+            else
+                context.FillRectangle(_placeholder, tile.ScreenRect);
+        }
     }
 
-    public bool HitTest(Avalonia.Point p) => Bounds.Contains(p);
-    public bool Equals(ICustomDrawOperation? other) => ReferenceEquals(this, other);
     public void Dispose() { /* tiles are owned by cache, not disposed here */ }
 }
 
@@ -60,6 +63,6 @@ public sealed class LokiCompositionDrawOp : ICustomDrawOperation
 /// Bitmap may be null if the tile is not yet rendered (placeholder drawn instead).
 /// </summary>
 public sealed record PositionedTile(
-    TileKey            Key,
-    Avalonia.Rect      ScreenRect,    // in DIPs
-    WriteableBitmap?   Bitmap);       // null = not yet rendered
+    TileKey           Key,
+    Rect              ScreenRect,   // in DIPs
+    WriteableBitmap?  Bitmap);      // null = not yet rendered

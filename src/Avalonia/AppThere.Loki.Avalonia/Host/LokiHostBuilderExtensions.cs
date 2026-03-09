@@ -32,9 +32,6 @@ public static class LokiHostBuilderExtensions
         {
             services.AddSingleton(resolved);
             services.AddSingleton<ISurfaceFactory, AvaloniaSurfaceFactory>();
-            // LokiTileCache registered as transient — one per LokiTileControl.
-            // Controls resolve it directly from the container, not via ILokiHost.
-            services.AddTransient<ILokiTileCache, LokiTileCache>();
         });
 
         return builder;
