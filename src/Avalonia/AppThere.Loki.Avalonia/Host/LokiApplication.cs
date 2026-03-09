@@ -4,6 +4,9 @@
 //          registers services, and creates the main window.
 //          Responsible for platform detection and passing appropriate
 //          TileCacheOptions to UseAvaloniaSurfaces().
+//          HostConfigure callback allows the App project to register
+//          format-specific services (e.g. OdfImporter) without adding
+//          a Format.Odf dependency to this library project.
 // DEPENDS: LokiHostBuilder, LokiHostBuilderExtensions, LokiMainWindow
 // USED BY: Program.BuildAvaloniaApp()
 // PHASE:   4
@@ -20,6 +23,12 @@ namespace AppThere.Loki.Avalonia.Host;
 
 public sealed class LokiApplication : Application
 {
+    /// <summary>
+    /// Optional callback to configure the LokiHostBuilder before Build().
+    /// Set by Program.cs to register format-specific services (e.g. OdfImporter).
+    /// </summary>
+    public static Action<LokiHostBuilder>? HostConfigure { get; set; }
+
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted()
@@ -28,12 +37,16 @@ public sealed class LokiApplication : Application
         {
             var options = SelectTileCacheOptions();
 
-            var host = new LokiHostBuilder()
+            var builder = new LokiHostBuilder()
                 .UseHeadlessSurfaces()       // overridden by UseAvaloniaSurfaces below
                 .UseSkiaRenderer()
                 .UseSkiaFonts()
                 .UseConsoleLogger()
-                .UseWriterEngine()
+                .UseWriterEngine();
+
+            HostConfigure?.Invoke(builder);
+
+            var host = builder
                 .UseAvaloniaSurfaces(options)
                 .Build();
 

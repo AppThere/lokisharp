@@ -112,7 +112,7 @@ public sealed class LokiTileControl : Control
     protected override Size MeasureOverride(Size availableSize)
     {
         var view = DocumentView;
-        if (view is null) return availableSize;
+        if (view is null) return new Size(0, 0);
         var size = view.GetPartSize(0);
         var zoom = Zoom;
         return new Size(size.Width * zoom, size.Height * zoom);
@@ -190,5 +190,19 @@ public sealed class LokiTileControl : Control
         }
         _currentDrawOp?.Dispose();
         _currentDrawOp = null;
+    }
+
+    // ── Ctrl+scroll zoom ─────────────────────────────────────────────────────
+
+    protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+    {
+        base.OnPointerWheelChanged(e);
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            var delta = e.Delta.Y > 0 ? 1.1f : 1f / 1.1f;
+            Zoom = Math.Clamp(Zoom * delta, 0.25f, 4.0f);
+            e.Handled = true;
+        }
+        // Non-Ctrl scroll: not handled — falls through to ScrollViewer.
     }
 }

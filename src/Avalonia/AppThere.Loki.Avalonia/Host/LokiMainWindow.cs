@@ -20,6 +20,7 @@
 
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -37,6 +38,7 @@ public sealed class LokiMainWindow : Window
     private readonly ILokiHost        _host;
     private readonly TileCacheOptions _cacheOptions;
     private readonly LokiTileControl  _tileControl;
+    private ScrollViewer?             _scroller;
     private LayoutBreakpoint          _currentBreakpoint;
     private ILokiDocument?            _currentDoc;
     private ILokiView?                _currentView;
@@ -90,27 +92,59 @@ public sealed class LokiMainWindow : Window
 
     private void ApplyPhoneLayout()
     {
+        DetachTileControl();
+        var scroller = BuildScroller();
+
         var grid = new Grid();
         grid.RowDefinitions.Add(new RowDefinition(1, GridUnitType.Star));
         grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
 
-        Grid.SetRow(_tileControl, 0);
+        Grid.SetRow(scroller, 0);
         var nav = BuildBottomNav();
         Grid.SetRow(nav, 1);
 
-        grid.Children.Add(_tileControl);
+        grid.Children.Add(scroller);
         grid.Children.Add(nav);
         Content = grid;
     }
 
     private void ApplyNormalLayout()
     {
+        DetachTileControl();
+        var scroller = BuildScroller();
+
         var dock    = new DockPanel();
         var toolbar = BuildToolbar();
         DockPanel.SetDock(toolbar, Dock.Top);
         dock.Children.Add(toolbar);
-        dock.Children.Add(_tileControl);
+        dock.Children.Add(scroller);
         Content = dock;
+    }
+
+    private ScrollViewer BuildScroller()
+    {
+        var scroller = new ScrollViewer
+        {
+            Content = _tileControl,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility   = ScrollBarVisibility.Auto,
+        };
+        scroller.ScrollChanged += (_, _) =>
+            _tileControl.ScrollOffset = new Vector(
+                scroller.Offset.X, scroller.Offset.Y);
+        _scroller = scroller;
+        return scroller;
+    }
+
+    private void DetachTileControl()
+    {
+        // Remove _tileControl from its current parent so it can be re-parented
+        if (_scroller is not null)
+        {
+            _scroller.Content = null;
+            _scroller = null;
+        }
+        Content = null;
     }
 
     private Control BuildToolbar()
